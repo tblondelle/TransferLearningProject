@@ -95,15 +95,22 @@ labels_sms_bin[labels_sms_bin == 'spam'] = 1
 labels_sms_bin = list(labels_sms_bin)
 
 countvectorizer = CountVectorizer(ngram_range=(2, 2))
-# ngram_range=(2, 2) permet d'obtenir une matrice de cooccurrences
+# ngram_range=(2, 2) permet d'obtenir les bigrammes : les couples de mots qui se suivent
+# On obtient des vecteurs de dimension 5500 env. => il faut réduire cette dim
 X_sms_token = countvectorizer.fit_transform(X_sms)
 
 
 X_sms_token = X_sms_token.toarray()
+#run_classifiers(Clf_dict,X_sms_token,labels_sms_bin) # ne fonctionne pas car dim. trop élevée
 
 
 tfidfvectorizer = TfidfVectorizer()
 X_sms_token_2 = tfidfvectorizer.fit_transform(X_sms)
+#run_classifiers(Clf_dict,X_sms_token_2,labels_sms_bin) # ne fonctionne pas car dim. trop élevée
+
+
+# réduction de dimension
+# c'est la seule qui marche
 truncatedsvd = TruncatedSVD(n_components=100)
 
 X_sms_token_3 = truncatedsvd.fit_transform(X_sms_token_2)

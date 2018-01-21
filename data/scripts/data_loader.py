@@ -11,6 +11,6 @@ class DataLoader():
         return(data)
         
 ### Exemple de fonctionnement :
-# test = DataLoader("C:/Users/Antoine/Documents/GitHub/TransferLearningProject/data")
-# data = test.load("instruments")
+# Loader = DataLoader("C:/Users/Antoine/Documents/GitHub/TransferLearningProject/data")
+# data = Loader.load("instruments")
 

@@ -4,13 +4,14 @@ import json
 import os
 
 class JsonHandler():
-    def __init__(self,SOURCE_LOCATION,TARGET_LOCATION):
+    def __init__(self, SOURCE_LOCATION, TARGET_LOCATION):
         self.source = SOURCE_LOCATION #Where datafiles are.
         self.target = TARGET_LOCATION #Where processed datafiles will be.
         if SOURCE_LOCATION == TARGET_LOCATION:
             print("TARGET_LOCATION must differ from SOURCE_LOCATION")
-    def convert(self,datafiles):
-        list_files = os.listdir(SOURCE_LOCATION)
+    
+    def convert(self):
+        list_files = os.listdir(self.source)
         for datafile in list_files:
     
             # Read the file.
@@ -21,7 +22,7 @@ class JsonHandler():
             file_content = file_content.split("\n")[:-1]
     
             # Process the json string and write the relevant info in the new file.
-            output_path = self.target+ "/" + datafile.split(".")[0]+".txt"
+            output_path = self.target + "/" + datafile.split(".")[0]+".txt"
             try:
                 os.makedirs(os.path.dirname(output_path))
             except OSError as exc:
@@ -36,9 +37,9 @@ class JsonHandler():
             print("New file written at {}".format(output_path))
 
 
-### EXAMPLE
 
-
-#jsonhandler = JsonHandler("../Data/data_books_processed-3b836e62-d25c-4cdb-a417-6af240b0cf9b")
-#jsonhandler.convert(["automotive.json"])
+if __name__ == "__main__":
+    jsonhandler = JsonHandler("../../../data/data_books", "../../../data/data_books_processed")
+    jsonhandler.convert()
+    pass
     

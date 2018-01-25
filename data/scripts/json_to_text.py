@@ -1,41 +1,33 @@
+# -*- coding: utf-8 -*-
+
+import json
+import uuid
 import os
 
-# Modifier le dir si nécessaire
-os.chdir("C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning")
+SOURCE_LOCATION = "../Data/data_books" # Where datafiles are.
+TARGET_LOCATION = "../Data/data_books_processed" # Where processed datafiles will be.
+datafiles = ["books_ac.txt", "books_ad.txt", "books_ae.txt"] # List of files (one json per line).
 
-#Remplacer par les noms des json à traiter (sans le .json)
-JSONS = ["apps","automotive","babies","beauty","cell_phones","food","garden","health","instruments","music","office_products","pet_supplies","tools","toys","video_games","videos"]
+id_target_folder = str(uuid.uuid4())
+if not os.path.exists(TARGET_LOCATION + "-" + id_target_folder):
+    os.makedirs(TARGET_LOCATION + "-" + id_target_folder)
 
-for JSON in JSONS:
-    print(JSON)
-    JSON += ".json"
-    json_doc = open(JSON,"r")
-    try:
-        os.remove(JSON.split(".")[0]+".txt","w")
-    except:
-        ()
-    text_doc = open(JSON.split(".")[0]+".txt","w")
-    for line in json_doc:
-        parts = line.split('"')
-        cleaned_parts = []
-        to_concatenate = 0
-        for i in range(len(parts)):
-            if to_concatenate:
-                to_concatenate = 0
-                cleaned_parts[-1] += parts[i][:-1]
-            else:
-                cleaned_parts.append(parts[i])
-            if parts[i]:
-                if parts[i][-1] == "\\":
-                    to_concatenate = 1
-        valid = 1
-        try:
-            note = int(cleaned_parts[20][2])
-        except:
-            valid = 0
-        text_review = cleaned_parts[17]
-        if valid:
-            text_doc.write(str(note)+" "+text_review +'\n')
-        
+for datafile in datafiles:
     
-
+    # Read the file.
+    with open(SOURCE_LOCATION + "/" + datafile, "r") as f:
+        file_content = f.read()
+    
+    # Split it so that every element of the array is a json string.
+    file_content = file_content.split("\n")[:-1]
+    
+    # Process the json string and write the relevant info in the new file.
+    for line in file_content:
+        data = json.loads(line)
+        
+        with open(TARGET_LOCATION + "-" + id_target_folder + "/" + datafile, "a") as f:
+            #print( "{}\t{}...".format(data["overall"], data["reviewText"][:30]))
+            f.write(str(data["overall"]) + "\t" + data["reviewText"] + "\n")
+    
+    print("New file written at {}/{}".format(TARGET_LOCATION + "-" + id_target_folder, datafile))
+    

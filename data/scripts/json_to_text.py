@@ -10,7 +10,8 @@ class JsonHandler():
         if SOURCE_LOCATION == TARGET_LOCATION:
             print("TARGET_LOCATION must differ from SOURCE_LOCATION")
     def convert(self,datafiles):
-        for datafile in datafiles:
+        list_files = os.listdir(SOURCE_LOCATION)
+        for datafile in list_files:
     
             # Read the file.
             with open(self.source + "/" + datafile, "r") as f:
@@ -33,8 +34,11 @@ class JsonHandler():
             f.close()
     
             print("New file written at {}".format(output_path))
- 
+
+
 ### EXAMPLE
-#jsonhandler = JsonHandler("C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning","C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning/text_data")
+
+
+#jsonhandler = JsonHandler("../Data/data_books_processed-3b836e62-d25c-4cdb-a417-6af240b0cf9b")
 #jsonhandler.convert(["automotive.json"])
     

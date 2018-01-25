@@ -1,33 +1,40 @@
 # -*- coding: utf-8 -*-
 
 import json
-import uuid
 import os
 
-SOURCE_LOCATION = "../Data/data_books" # Where datafiles are.
-TARGET_LOCATION = "../Data/data_books_processed" # Where processed datafiles will be.
-datafiles = ["books_ac.txt", "books_ad.txt", "books_ae.txt"] # List of files (one json per line).
-
-id_target_folder = str(uuid.uuid4())
-if not os.path.exists(TARGET_LOCATION + "-" + id_target_folder):
-    os.makedirs(TARGET_LOCATION + "-" + id_target_folder)
-
-for datafile in datafiles:
+class JsonHandler():
+    def __init__(self,SOURCE_LOCATION,TARGET_LOCATION):
+        self.source = SOURCE_LOCATION #Where datafiles are.
+        self.target = TARGET_LOCATION #Where processed datafiles will be.
+        if SOURCE_LOCATION == TARGET_LOCATION:
+            print("TARGET_LOCATION must differ from SOURCE_LOCATION")
+    def convert(self,datafiles):
+        for datafile in datafiles:
     
-    # Read the file.
-    with open(SOURCE_LOCATION + "/" + datafile, "r") as f:
-        file_content = f.read()
+            # Read the file.
+            with open(self.source + "/" + datafile, "r") as f:
+                file_content = f.read()
     
-    # Split it so that every element of the array is a json string.
-    file_content = file_content.split("\n")[:-1]
+            # Split it so that every element of the array is a json string.
+            file_content = file_content.split("\n")[:-1]
     
-    # Process the json string and write the relevant info in the new file.
-    for line in file_content:
-        data = json.loads(line)
-        
-        with open(TARGET_LOCATION + "-" + id_target_folder + "/" + datafile, "a") as f:
-            #print( "{}\t{}...".format(data["overall"], data["reviewText"][:30]))
-            f.write(str(data["overall"]) + "\t" + data["reviewText"] + "\n")
+            # Process the json string and write the relevant info in the new file.
+            output_path = self.target+ "/" + datafile.split(".")[0]+".txt"
+            try:
+                os.makedirs(os.path.dirname(output_path))
+            except OSError as exc:
+                ()
+                
+            f = open(output_path, "w")
+            for line in file_content:
+                data = json.loads(line)
+                f.write(str(int(data["overall"])) + " " + data["reviewText"] + "\n")
+            f.close()
     
-    print("New file written at {}/{}".format(TARGET_LOCATION + "-" + id_target_folder, datafile))
+            print("New file written at {}".format(output_path))
+ 
+### EXAMPLE
+#jsonhandler = JsonHandler("C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning","C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning/text_data")
+#jsonhandler.convert(["automotive.json"])
     

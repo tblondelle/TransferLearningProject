@@ -20,6 +20,7 @@ Exemple de Sample review :
 On peut alors utiliser le script `json_to_text.py` pour les transformer en fichiers texte ne contenant que les informations nécessaires. (lire les commentaires du script avant de l'exécuter).
 
 Le script `data_loader.py` fournit une classe `DataLoader` dont la méthode `load` renvoie un tableau contenant les données contenues dans un fichier. (lire les commentaires du script pour avoir des exemples d'utilisation)  
+NB: Ce script n'est plus utilisé par les autres programmes et peut sûrement être retiré. 
 
 ## 3. Données transformées
 
@@ -36,4 +37,60 @@ Exemple d'une ligne :
 ```
 
 Voir aussi le [fichier exemple](./instruments.txt) dans ce dossier.
+
+
+## 4. Données nettoyées
+
+Après pré-traitement des données, il convient de transformer les commentaires de manière à pouvoir stocker de manière efficace les données tout en gardant les informations importantes. 
+
+Pour ce faire, le script `cleaner.py` fournit une classe `text_cleaner` dont la méthode `cleaner` écrit un fichier texte contenant les données précédentes nettoyées dans le répertoire cible. Ce script fait appel à certains packages de Python qui imposent une installation préalable, voir les notes importantes à la fin de ce document. 
+
+Plus précisément, on effectue les opérations suivantes : 
+
+### 4.1 Traitement de la note 
+
+La note est un entier entre 1 et 5 (compris). Afin de mieux pouvoir traiter le ton d'un commentaire et le sentiment qui lui est associé, le script `cleaner.py` transforme la note en un mot "Neutral", "Positive" ou "Negative". Pour le moment, l'association est faite de la manière suivante : 
+
+- 1 ou 2 : "Negative"
+- 3 ou 4 : "Neutral"
+- 5 : "Positive"
+
+Cette association peut être modifiée en modifiant le script `cleaner.py` de manière très simple. Elle peut même à terme passer en argument de la classe `text_cleaner`.
+
+### 4.2 Traitement du commentaire 
+
+Dans un premier temps, on crée des tokens avec le texte afin de pouvoir en faciliter le traitement.
+
+A partir de ces tokens, on supprime : 
+- les "stop words", comprendre les mots qui sont couramment utilisés dans la langue anglaise et ne porte pas beaucoup de sens, comme par exemple "it", "him", "are", etc...
+- la ponctuation
+- les nombres 
+
+On effectue également un traitement sur les fautes d'orthographes à l'aide du package Enchant de Python. On vérifie la présence dans le dictionnaire anglais UK ou anglais US d'un mot avant de le conserver, et on prend la meilleur suggestion de mot disponible si le mot n'existe pas. 
+
+## Notes importantes
+
+Le script `cleaner.py` utilise plusieurs packages importants à installer avant de pouvoir l'utiliser : 
+
+### NLTK
+
+NLTK, pour Natural Langage Tool Kit, permet d'assurer la tokenization du texte ainsi que de fournir la liste de "stop words".
+
+Les informations pour installer le package sont disponibles sur le <a href="http://www.nltk.org/install.html"> site officiel de NLTK </a>.
+Après avoir installé nltk, lancer les commandes en console python : 
+
+import nltk
+
+nltk.download("all")
+
+Ces commandes devraient permettre l'installation des données de nltk correctement. A noter que nltk.download() lance une interface GUI qui semble bugger sur certains packages de nltk. 
+
+### Enchant 
+
+Enchant or PyEnchant nous permet de réaliser la correction des fautes d'orthographe au sein du texte. 
+
+Les informations contenant l'installation du package sont contenues sur le <a href="http://pythonhosted.org/pyenchant/tutorial.html"> site officiel de PyEnchant </a>, crée par Ryan Kelly. 
+
+A noter que Enchant ne fonctionne que sur une version de Python 32 bits (une version de Python 32 bits peut cependant être installée sur une machine 64 bits sans problèmes)
+
 

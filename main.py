@@ -1,5 +1,4 @@
-import data.scripts.json_to_text as json_to_text
-import data.scripts.cleaner as cleaner
+from data.scripts import json_to_text, cleaner, createDatasets
 
 
 
@@ -42,8 +41,9 @@ def simplifyRatingAndKeepRelevantWords(source_folder, target_folder):
     
     
 def createTrainingSetAndTestSet(source_folder, target_training_set_folder, target_testing_set_folder):
-    print("/!\ createTrainingSetAndTestSet not created yet.")
-    pass
+    nb_train, nb_test = createDatasets.createDataset(source_folder, target_training_set_folder, target_testing_set_folder)
+    print("{} files written in {}".format(nb_train, target_training_set_folder))
+    print("{} files written in {}".format(nb_test, target_testing_set_folder))
 
 def learn(training_set_folder):
     print("/!\ learn not created yet.")
@@ -62,11 +62,11 @@ def showResults(model, testing_set_folder):
 if __name__ == "__main__":
     ## Pre-processing for the two datasets.
     print("\n--- PREPROCESSING ---")
-    stripMetadata(ORIGIN_FOLDER_1, STRIPPED_METADATA_FOLDER_1)
-    simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_1, CLEANED_DATA_FOLDER_1)
+    #stripMetadata(ORIGIN_FOLDER_1, STRIPPED_METADATA_FOLDER_1)
+    #simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_1, CLEANED_DATA_FOLDER_1)
 
-    stripMetadata(ORIGIN_FOLDER_2, STRIPPED_METADATA_FOLDER_2)
-    simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_2, CLEANED_DATA_FOLDER_2)
+    #stripMetadata(ORIGIN_FOLDER_2, STRIPPED_METADATA_FOLDER_2)
+    #simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_2, CLEANED_DATA_FOLDER_2)
 
     # Learning
     print("\n--- LEARNING FROM DATASET 1 ---")

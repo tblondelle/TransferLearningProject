@@ -26,7 +26,7 @@ class JsonHandler():
             try:
                 os.makedirs(os.path.dirname(output_path))
             except OSError as exc:
-                ()
+                print(exc)
                 
             f = open(output_path, "w")
             for line in file_content:

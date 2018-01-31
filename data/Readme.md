@@ -1,5 +1,12 @@
 # Data
 
+## Sommaire
+- [1. Données brutes](#1-donn%C3%A9es-brutes)
+- [2. Pré-traitement des données](#2-pr%C3%A9-traitement-des-donn%C3%A9es)
+- [3. Données transformées](#3-donn%C3%A9es-transform%C3%A9es)
+- [4. Données nettoyées](#4-donn%C3%A9es-nettoy%C3%A9es)
+- [Installation de packages](#installation-de-packages)
+
 ## 1. Données brutes
 On peut télécharger les données des reviews Amazon à l'URL suivante : http://jmcauley.ucsd.edu/data/amazon/. On conseillera l'utilisation des "petits" subsets, qui sont déjà catégorisés (prendre la version 5-core).
 
@@ -66,9 +73,11 @@ A partir de ces tokens, on supprime :
 - la ponctuation
 - les nombres 
 
-On effectue également un traitement sur les fautes d'orthographes à l'aide du package Enchant de Python. On vérifie la présence dans le dictionnaire anglais UK ou anglais US d'un mot avant de le conserver, et on prend la meilleur suggestion de mot disponible si le mot n'existe pas. 
+On effectue également un traitement sur les fautes d'orthographes à l'aide du package [Enchant](http://pythonhosted.org/pyenchant/tutorial.html) de Python. On vérifie la présence dans le dictionnaire anglais UK ou anglais US d'un mot avant de le conserver, et on prend la meilleur suggestion de mot disponible si le mot n'existe pas. 
 
-## Notes importantes
+Ce traitement prend environ 12 secondes par millier de reviews.
+
+## Installations de packages
 
 Le script `cleaner.py` utilise plusieurs packages importants à installer avant de pouvoir l'utiliser : 
 
@@ -76,21 +85,22 @@ Le script `cleaner.py` utilise plusieurs packages importants à installer avant 
 
 NLTK, pour Natural Langage Tool Kit, permet d'assurer la tokenization du texte ainsi que de fournir la liste de "stop words".
 
-Les informations pour installer le package sont disponibles sur le <a href="http://www.nltk.org/install.html"> site officiel de NLTK </a>.
+Les informations pour installer le package sont disponibles sur le [site officiel de NLTK](http://www.nltk.org/install.html).
 Après avoir installé nltk, lancer les commandes en console python : 
 
+```python
 import nltk
-
 nltk.download("all")
+```
 
-Ces commandes devraient permettre l'installation des données de nltk correctement. A noter que nltk.download() lance une interface GUI qui semble bugger sur certains packages de nltk. 
+Ces commandes devraient permettre l'installation des données de nltk correctement. A noter que `nltk.download()` lance une interface GUI qui semble bugger sur certains packages de nltk. 
 
 ### Enchant 
 
 Enchant or PyEnchant nous permet de réaliser la correction des fautes d'orthographe au sein du texte. 
 
-Les informations contenant l'installation du package sont contenues sur le <a href="http://pythonhosted.org/pyenchant/tutorial.html"> site officiel de PyEnchant </a>, crée par Ryan Kelly. 
+Les informations contenant l'installation du package sont contenues sur le [site officiel de PyEnchant](http://pythonhosted.org/pyenchant/tutorial.html), créé par Ryan Kelly. 
 
-A noter que Enchant ne fonctionne que sur une version de Python 32 bits (une version de Python 32 bits peut cependant être installée sur une machine 64 bits sans problèmes)
+A noter que Enchant ne fonctionne que sur une version de Python 32 bits (une version de Python 32 bits peut cependant être installée sur une machine 64 bits sans problème)
 
 

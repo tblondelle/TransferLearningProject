@@ -1,4 +1,5 @@
 import data.scripts.json_to_text as json_to_text
+import data.scripts.cleaner as cleaner
 
 
 
@@ -12,7 +13,7 @@ STRIPPED_METADATA_FOLDER_1 = "../data/data_books_stripped"
 STRIPPED_METADATA_FOLDER_2 = "../data/data_videos_stripped"
 
 # In this folder are files such that : 
-# - every line is of the form "[new ratings]\t[list of relevant words]" with [new ratings] in {0, 1, 2}
+# - every line is of the form "[new ratings]\t[list of relevant words]" with [new ratings] in {"Negative", "Neutral", "Positive"}
 CLEANED_DATA_FOLDER_1 = "../data/data_books_cleaned"
 CLEANED_DATA_FOLDER_2 = "../data/data_videos_cleaned"
 
@@ -37,9 +38,9 @@ def simplifyRatingAndKeepRelevantWords(source_folder, target_folder):
     Simplify the rating and keep relevant words only
     Put the results in file (or files) in target_folder
     """
-    print("/!\ simplifyRatingAndKeepRelevantWords not created yet.")
-    pass
-
+    cleaner.TextCleaner(source_folder, target_folder).clean()
+    
+    
 def createTrainingSetAndTestSet(source_folder, target_training_set_folder, target_testing_set_folder):
     print("/!\ createTrainingSetAndTestSet not created yet.")
     pass

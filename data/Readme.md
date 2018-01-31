@@ -77,7 +77,7 @@ On effectue également un traitement sur les fautes d'orthographes à l'aide du 
 
 Ce traitement prend environ 12 secondes par millier de reviews.
 
-## Installations de packages
+## Installation de packages
 
 Le script `cleaner.py` utilise plusieurs packages importants à installer avant de pouvoir l'utiliser : 
 

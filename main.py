@@ -3,7 +3,9 @@ from learning.Classifiers import BaseClassifier
 
 
 from itertools import islice  # sert à n'ouvrir que les N premières lignes d'un fichier
+
 from sklearn.feature_extraction.text import CountVectorizer  # passe du texte brut à un vecteur
+from sklearn.decomposition import TruncatedSVD
 
 import os
 
@@ -13,8 +15,8 @@ ORIGIN_FOLDER_2 = "../data/data_video" # eg (we will learn video data from books
 
 # In this folder are files such that : 
 # - every line is of the form "[original ratings]\t[original review]"
-STRIPPED_METADATA_FOLDER_1 = "../data/data_books_stripped"
-STRIPPED_METADATA_FOLDER_2 = "../data/data_videos_stripped"
+STRIPPED_METADATA_FOLDER_1 = "data/data_books_stripped"
+STRIPPED_METADATA_FOLDER_2 = "data/data_videos_stripped"
 
 # In this folder are files such that : 
 # - every line is of the form "[new ratings]\t[list of relevant words]" with [new ratings] in {"Negative", "Neutral", "Positive"}
@@ -53,11 +55,8 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
 
 
 def learn(training_set_folder):
-
-    data_paths = os.listdir(training_set_folder)
-    
     # Opening file
-    with open(training_set_folder + "/" + data_paths[0]) as file:
+    with open(training_set_folder) as file:
         N = 1000 # number of lines we keeeeep
         head = list(islice(file,N))
     
@@ -80,8 +79,11 @@ def learn(training_set_folder):
     tokenizer = CountVectorizer()
     tokenizer.fit(Dict)
     
-    X_train = tokenizer.transform(X_rawtext)
+    X_token = tokenizer.transform(X_rawtext)
+        
     
+    truncatedsvd = TruncatedSVD(n_components=100)
+    X_train = truncatedsvd.fit_transform(X_token)
     
     # training
     # this part will change
@@ -116,7 +118,11 @@ if __name__ == "__main__":
     # Learning
     print("\n--- LEARNING FROM DATASET 1 ---")
     createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
-    model1 = learn(TRAINING_SET_FOLDER_1)
+    
+    DATA_PATHS = os.listdir(TRAINING_SET_FOLDER_1)
+    TRAINING_PATH_1 =  TRAINING_SET_FOLDER_1+'/'+DATA_PATHS[0]
+    model1 = learn(TRAINING_PATH_1)
+    
     showResults(model1, TESTING_SET_FOLDER_1)
 
     # TransferLearning

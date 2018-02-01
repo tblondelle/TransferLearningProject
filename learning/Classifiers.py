@@ -7,6 +7,12 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import BaggingClassifier, AdaBoostClassifier, RandomForestClassifier
 
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import TruncatedSVD
+from sklearn.feature_extraction.text import TfidfVectorizer
+    
+
+
 
 
 class BaseClassifier():
@@ -21,8 +27,9 @@ class BaseClassifier():
                 'TreeBagging':BaggingClassifier(n_estimators = 75),
                 'AdaBoost':AdaBoostClassifier(n_estimators = 15),
                 'Random Forest':RandomForestClassifier(n_estimators = 25) 
-                }
-        self.successes = {}
+                }  # dictionnaire des classifieurs que l'on va utiliser
+        self.successes = {}  # performances de chacun des classifieurs
+                            # sera calculée plus tard  
 
     def train(self,X,Y):
         # Entrées :
@@ -34,29 +41,33 @@ class BaseClassifier():
         
         X_train,Y_train = X[:limit,:],Y[:limit]
         
-        X_val,Y_val= X[limit:,:],Y[limit:]
+        X_val,Y_val= X[limit:,:],Y[limit:]  # sert à calculer les performances
         
         for clf_name in self.dct:
             start = time.time()
             clf = self.dct[clf_name]
             clf.fit(X_train,Y_train)
             preds = clf.predict(X_val)
+            
             self.successes[clf_name] = np.mean(preds == Y_val)
-            print(clf_name,'\t\t\t',time.time()-start)
+            
+            print(clf_name,'\t\t\t',time.time()-start)  # on affiche le temps mis pour traiter N lignes
             
     def predict(self,X):
         # Entrées :
             # X = numpy array (N_instances,N_features)
         # Sorties :
             # Y = numpy array (N_instances)
+        # renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
+        # la décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
             
         probas = np.zeros((X.shape[0],))
         
         for name in self.dct:
             clf = self.dct[name]
-            probas += clf.predict(X)*self.successes[name]
+            probas += clf.predict(X)#*self.successes[name]
         
-        probas /= sum([self.successes[name]  for name in self.successes ])
+        probas /= len(self.dct)  #sum([self.successes[name]  for name in self.successes ])
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
         return classes
     
@@ -66,16 +77,32 @@ class BaseClassifier():
     
     
     
-    
+"""    
 
 from itertools import islice
-from Tokenizers import tokenize
 
 filename = "../data/instruments.txt"
 N = 1000  # nombre de lignes à examiner
 
+def tokenize(textList):
+    # Entrées :
+        # textList : liste de strings de taille N
+    # Sorties :
+        # X : numpy array de taille Nx100
+    countvectorizer = CountVectorizer(ngram_range=(1,2))    
+    X_token = countvectorizer.fit_transform(textList)
+    X_token = X_token.toarray()
+        
+    # réduction de dimension
+    truncatedsvd = TruncatedSVD(n_components=100)
+    X_reduced_dim = truncatedsvd.fit_transform(X_token)
+    
+    return(X_reduced_dim)
 
 
+"""
+
+"""
 # Option 1 : rien changé
 
 with open(filename) as myfile:
@@ -116,7 +143,7 @@ print('%success',np.mean([Y_pred == Y_test]))
 """
 
 
-
+"""
 # Option 2: probas équitables sur les 2 ensembles
 
 
@@ -255,7 +282,7 @@ Y_test = labels_bin_te
 
 
 
-
+"""
 TP = len([i for i in range(len(Y_pred)) if Y_pred[i] == 1 and Y_test[i] == 0])
 TN = len([i for i in range(len(Y_pred)) if Y_pred[i] == -1 and Y_test[i] == 1])
 FP = len([i for i in range(len(Y_pred)) if Y_pred[i] == 1 and Y_test[i] == 1])
@@ -263,11 +290,11 @@ FN = len([i for i in range(len(Y_pred)) if Y_pred[i] == -1 and Y_test[i] == 0])
 
 
 print('')
-print('Confusion matrix : SMS Spam base')
+print('Confusion matrix :')
 print()
 print(" \t\t Actual class")
 print(" \t\t Good \t Bad")
 print("Predicted Good \t {} \t {}".format(TP,FN))
 print("          Bad \t {} \t {}".format(FP,TN))
 
-
+"""

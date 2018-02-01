@@ -1,5 +1,9 @@
-from data.scripts import json_to_text, cleaner, createDatasets
+#from data.scripts import json_to_text, cleaner, createDatasets
+from learning.Classifiers import BaseClassifier
 
+
+from itertools import islice  # sert à n'ouvrir que les N premières lignes d'un fichier
+from sklearn.feature_extraction.text import CountVectorizer  # passe du texte brut à un vecteur
 
 
 # Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
@@ -45,9 +49,45 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
     print("{} files written in {}".format(nb_train, target_training_set_folder))
     print("{} files written in {}".format(nb_test, target_testing_set_folder))
 
+
+
 def learn(training_set_folder):
-    print("/!\ learn not created yet.")
-    pass
+    # Opening file
+    with open(training_set_folder) as file:
+        N = 1000 # number of lines we keeeeep
+        head = list(islice(file,N))
+    
+    X_rawtext,Y_train = [],[]
+    for line in head:
+        [y,x] = line.split('\t')
+        
+        y = 1 if y=='Positive' else (0 if y=='Neutral' else -1)
+        #y = 1 if y>3 else (0 if y==3 else -1)
+        
+        if y!= 0:
+            X_rawtext.append(x)
+            Y_train.append(y)
+    
+    
+    # Tokenization
+    Dict = GET_ALL_POSSIBLE_WORDS #TODO
+    
+    tokenizer = CountVectorizer()
+    tokenizer.fit(Dict)
+    
+    X_train = tokenizer.transform(X_rawtext)
+    
+    
+    # training
+    # this part will change
+    Clf = BaseClassifier()
+    Clf.train(X_train,Y_train)
+    
+    return Clf
+
+
+
+
 
 def transferLearn(old_model, training_set_folder):
     print("/!\ transferLearn not created yet.")

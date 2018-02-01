@@ -28,6 +28,7 @@ class BaseClassifier():
                 'AdaBoost':AdaBoostClassifier(n_estimators = 15),
                 'Random Forest':RandomForestClassifier(n_estimators = 25) 
                 }  # dictionnaire des classifieurs que l'on va utiliser
+   
         self.successes = {}  # performances de chacun des classifieurs
                             # sera calculée plus tard  
 
@@ -39,27 +40,33 @@ class BaseClassifier():
             # Y = numpy array (N_instances)
         # Sorties :
             # None
-        limit = (9*X.shape[0])//10
+        limit = (9*X.shape[0])//10  # séparation entraînement/validation
+            # la validation sert à mesurer les taux de succès de chaque algo pour
+            # donner plus de poids aux bons algos
+        X_train,Y_train = X[:limit,:],Y[:limit] # ne sert qu'à l'entraînement
         
-        X_train,Y_train = X[:limit,:],Y[:limit]
+        X_val,Y_val= X[limit:,:],Y[limit:]  # validation, sert à calculer les performances
         
-        X_val,Y_val= X[limit:,:],Y[limit:]  # sert à calculer les performances
         print('')
         print('Temps de fonctionnement')
         for clf_name in self.dct:
             start = time.time()
-            clf = self.dct[clf_name]
-            clf.fit(X_train,Y_train)
-            preds = clf.predict(X_val)
+            clf = self.dct[clf_name]  # on sort l'objet Scikit-learn
+            clf.fit(X_train,Y_train)  # entraînement
             
+            preds = clf.predict(X_val)
             
             self.successes[clf_name] = np.mean(preds == Y_val)
             
             print(clf_name, ' '*(20-len(clf_name)) ,'\t',time.time()-start)  # on affiche le temps mis pour traiter N lignes
             
-    def predict(self,X,display = False,Y_test = None):
+            
+            
+    def predict(self,X,Y_test = None):
         # Entrées :
-            # X = numpy array (N_instances,N_features)
+            # X = numpy array (N_instances,N_features) carac d'entrée des données à prédire
+            # Y_test = numpy array (N_instances) (optionnel) classes réelles 
+                # Quand il est précisé, le taux de succès de chacun dessous_classifieurs s'affiche (print)
         # Sorties :
             # Y = numpy array (N_instances)
         # renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
@@ -67,23 +74,24 @@ class BaseClassifier():
             
         probas = np.zeros((X.shape[0],))
         
-        
         print('')
         print('Taux de succès')
         for name in self.dct:
             clf = self.dct[name]
-            probas += clf.predict(X)#*self.successes[name]
-            
+            probas += clf.predict(X)  #*self.successes[name]
+                            # Actuellement, on ne prend pas en compte les taux de succès
+                            # dé-commenter la ligne pour les prendre en compte
             if type(Y_test) !=  type(None) :  # Y_test == None renvoie un array si Y_test est un array
                 pred_class = [1 if proba > 0.5 else 0 for proba in probas]
                 #Success_tab = [1 if  pred_class[i] == Y_test[i] else 0 for i in range(len(Y_test))]
                 #SuccessRate = np.mean(Success_tab)
                 SuccessRate = np.mean(pred_class == Y_test)
                 
-                if display:   
-                    print(name, ' '*(20-len(name)) ,'\t',SuccessRate)
+                print(name, ' '*(20-len(name)) ,'\t',SuccessRate)
         
         probas /= len(self.dct)  #sum([self.successes[name]  for name in self.successes ])
+                            # Actuellement, on ne prend pas en compte les taux de succès
+                            # remplacer le len(self.dct) par le commentaire pour les prendre en compte
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
         return classes
     
@@ -103,15 +111,66 @@ def tokenize(textList):
         # textList : liste de strings de taille N
     # Sorties :
         # X : numpy array de taille Nx100
+    # Transforme chaque phrase (string) en un vecteur grâce à CountVectorizer et TruncatedSVD
     countvectorizer = CountVectorizer(ngram_range=(1,2))    
     X_token = countvectorizer.fit_transform(textList)
-    X_token = X_token.toarray()
+    """ Countvectorizer.fit_transform réalise 2 opérations
+       countvectorizer.fit(textlist) 
+           ne renvoie rien, associe un indice (un entier) à chaque mot dans 
+           la liste de strings textlist
+           ex : si textlist1 = ['aa bb','aa cc','dd']
+           la fonction prépare l'objet à faire 'aa'-> 1
+                                               'bb'-> 2
+                                               'cc'-> 3
+                                               'dd'-> 4
+    
+       X_token = countvectorizer.transform(textList) : 
+           créé un array numpy de la forme A(i,j) = nombre de mots d'indice I dans la string I
+           ex : si textlist2 = ['aa aa','bb cc','dd aa zz']
+             et si on a fait countvectorizer.fit(textlist1) (cf exemple précédent),
+          
+            
+      colonne 2 = nombre de mots "bb" colonne 3 = nombre de mots "cc"      
+    colonne 1 = nombre de mots "aa" | | colonne 4 = nombre de mots "dd" 
+                                  | | | | 
+                                  V V V V
+         la fonction renverra M= [[2,0,0,0],  <- string 1 = 'aa aa'
+                                 [0,1,1,0],  <- string 1 = 'bb cc'
+                                 [1,0,0,1]]  <- string 1 = 'dd aa zz'
+           
+         Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)                       
+         ce mot n'est associé à rien
         
+        Rq : l'array M est une matrice sparse (majoritairement vide), c'est un type d'objet qui permet de 
+        ne pas stocker des tas de zéros en mémoire. Pour la transformer en array normal, on peut faire
+        M.toarray(), mais le tableau ainsi crée est souvent trop gros pour être géré.
+        Le mieux est d'utiliser la décomposition en valeurs singulières, cf plus loin:
+        
+    """                              
+    
     # réduction de dimension
-    truncatedsvd = TruncatedSVD(n_components=100)
+    truncatedsvd = TruncatedSVD(n_components=100) # prépare à projeter les données dans un espace à n_components=100 dimensions 
+    
     X_reduced_dim = truncatedsvd.fit_transform(X_token)
+    """Comme Countvectorizer.fit_transform, cette instruction réalise 2 opérations
+       truncatedsvd.fit(X_token) 
+           prépare l'objet, lui dit d'utiliser les mots avec la distribution de probabilité de 
+           X_token
+    
+       X_reduced_dim = truncatedsvd.fit_transform(X_token)
+           fait la Décomposition en valeurs singulières (SVD), qui est l'équivelent d'une diagonalisation
+             pour des matrices rectangles. On calcule U,V,D, tq : 
+                 - U carrée, U*transposée(U) = I_m
+                 - D rectancle, diagonale
+                 - V carrée, V*transposée(V) = I_n
+            On renvoie ensuite U[:n:n_components], la matrice U dont on a tronqué les coordonnées
+            qui a concentré l'information, un peu à la manière d'une ACP (pour les maths, cf Wikipédia)
+    """
     
     return(X_reduced_dim)
+
+
+
 
 """
 # Option 1 : rien changé
@@ -209,7 +268,7 @@ Y_test = labels_bin[N_sep:]
 
 C = BaseClassifier()
 C.train(X_train,Y_train)
-Y_pred = C.predict(X_test,display = True,Y_test = Y_test)
+Y_pred = C.predict(X_test,Y_test = Y_test)
 
 
 print(Y_pred[:10])

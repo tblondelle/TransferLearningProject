@@ -81,9 +81,9 @@ def learn(training_set_folder):
     
     X_token = tokenizer.transform(X_rawtext)
         
-    
     truncatedsvd = TruncatedSVD(n_components=100)
-    X_train = truncatedsvd.fit_transform(X_token)
+    truncatedsvd.fit(tokenizer.transform(Dict))
+    X_train = truncatedsvd.transform(X_token)
     
     # training
     # this part will change

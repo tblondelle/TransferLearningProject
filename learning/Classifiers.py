@@ -18,18 +18,20 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 class BaseClassifier():
     def __init__(self):
         self.dct = {
-                'Naive Bayes': GaussianNB(),
-                'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
-                'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
-                'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
+                #'Naive Bayes': GaussianNB(),
+                #'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
+                #'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
+                #'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
                 ###'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
-                'KNN':KNeighborsClassifier(n_neighbors=50),
+                #'KNN':KNeighborsClassifier(n_neighbors=50),
                 'TreeBagging':BaggingClassifier(n_estimators = 75),
-                'AdaBoost':AdaBoostClassifier(n_estimators = 15),
-                'Random Forest':RandomForestClassifier(n_estimators = 25) 
+                #'AdaBoost':AdaBoostClassifier(n_estimators = 15),
+                #'Random Forest':RandomForestClassifier(n_estimators = 25) 
                 }  # dictionnaire des classifieurs que l'on va utiliser
         self.successes = {}  # performances de chacun des classifieurs
                             # sera calculée plus tard  
+
+
 
     def train(self,X,Y):
         # Entrées :
@@ -75,13 +77,11 @@ class BaseClassifier():
     
     
     
-    
-    
-"""    
+     
 
 from itertools import islice
 
-filename = "../data/instruments.txt"
+filename = "../../data/data_books_cleaned/books_aa.txt"
 N = 1000  # nombre de lignes à examiner
 
 def tokenize(textList):
@@ -99,23 +99,21 @@ def tokenize(textList):
     
     return(X_reduced_dim)
 
-
-"""
-
 """
 # Option 1 : rien changé
 
 with open(filename) as myfile:
     head = list(islice(myfile,N))
 
+head = [line.split('\t') for line in head]
 
 labels = [line[0] for line in head]
-X = [line[2:] for line in head]
+X = [line[1] for line in head]
 
 
 X_token = tokenize(X)
 
-labels_bin = [ 0 if label in ['1','2','3'] else 1 for label in labels]  
+labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
 labels_bin = np.array(labels_bin)
 
 print(np.mean(labels_bin))
@@ -139,16 +137,18 @@ print(Y_test[:10])
 print(np.mean([ Y_test]))
 print(np.mean([Y_pred]))
 print('%success',np.mean([Y_pred == Y_test]))
-
 """
 
 
-"""
+
 # Option 2: probas équitables sur les 2 ensembles
-
 
 with open(filename) as myfile:
     total_head = list(islice(myfile,N))
+
+total_head = [line.split('\t') for line in total_head]
+
+
 
 N = len(total_head)
 head = total_head[:(3*N)//4]
@@ -157,15 +157,15 @@ head_test = total_head[(3*N)//4:]
 
 I_keep = []
 for i in range(len(head)):
-    n = int(head[i][0])
-    if n < 4:
+    label = (head[i][0])
+    if label in ['Negative','Neutral'] :
         I_keep.append(i)
 
 N_small = len(I_keep)
 i = 0
 while len(I_keep)<2*N_small:
-    n = int(head[i][0])
-    if n >= 4:
+    label = (head[i][0])
+    if label in ['Positive'] :
         I_keep.append(i)
     i+=1
 
@@ -177,11 +177,11 @@ head = [head[i] for i in I_keep]
 
 
 labels = [line[0] for line in head]
-X = [line[2:] for line in head]
+X = [line[1] for line in head]
 
 X_token = tokenize(X)
 
-labels_bin = [ 0 if label in ['1','2','3'] else 1 for label in labels]  
+labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
 labels_bin = np.array(labels_bin)
 
 
@@ -204,7 +204,7 @@ print(np.mean([ Y_test]))
 print(np.mean([Y_pred]))
 print('%success',np.mean([Y_pred == Y_test]))
 
-"""
+
 
 
 

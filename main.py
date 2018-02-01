@@ -26,7 +26,7 @@ TESTING_SET_FOLDER_1 = "../data/data_books_testing_set"
 TRAINING_SET_FOLDER_2 = "../data/data_videos_training_set"
 TESTING_SET_FOLDER_2 = "../data/data_videos_testing_set"
 
-
+DICT_WORDS = "../data/dict_words/20k.txt"
 
 def stripMetadata(source_folder, target_folder):
     """
@@ -53,8 +53,11 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
 
 
 def learn(training_set_folder):
+
+    data_paths = os.listdir(training_set_folder)
+    
     # Opening file
-    with open(training_set_folder) as file:
+    with open(training_set_folder + "/" + data_paths[0]) as file:
         N = 1000 # number of lines we keeeeep
         head = list(islice(file,N))
     
@@ -71,7 +74,8 @@ def learn(training_set_folder):
     
     
     # Tokenization
-    Dict = GET_ALL_POSSIBLE_WORDS #TODO
+    with open (DICT_WORDS, 'r') as f:
+        Dict = f.read().split('\n')
     
     tokenizer = CountVectorizer()
     tokenizer.fit(Dict)
@@ -112,11 +116,7 @@ if __name__ == "__main__":
     # Learning
     print("\n--- LEARNING FROM DATASET 1 ---")
     createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
-    
-    DATA_PATHS = os.listdir(TRAINING_SET_FOLDER_1)
-    TRAINING_PATH_1 = DATA_PATHS[0]
-    model1 = learn(TRAINING_PATH_1)
-    
+    model1 = learn(TRAINING_SET_FOLDER_1)
     showResults(model1, TESTING_SET_FOLDER_1)
 
     # TransferLearning

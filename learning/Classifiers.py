@@ -18,15 +18,15 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 class BaseClassifier():
     def __init__(self):
         self.dct = {
-                #'Naive Bayes': GaussianNB(),
-                #'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
-                #'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
-                #'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
+                'Naive Bayes': GaussianNB(),
+                'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
+                'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
+                'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
                 ###'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
-                #'KNN':KNeighborsClassifier(n_neighbors=50),
+                'KNN':KNeighborsClassifier(n_neighbors=50),
                 'TreeBagging':BaggingClassifier(n_estimators = 75),
-                #'AdaBoost':AdaBoostClassifier(n_estimators = 15),
-                #'Random Forest':RandomForestClassifier(n_estimators = 25) 
+                'AdaBoost':AdaBoostClassifier(n_estimators = 15),
+                'Random Forest':RandomForestClassifier(n_estimators = 25) 
                 }  # dictionnaire des classifieurs que l'on va utiliser
         self.successes = {}  # performances de chacun des classifieurs
                             # sera calculée plus tard  
@@ -44,18 +44,20 @@ class BaseClassifier():
         X_train,Y_train = X[:limit,:],Y[:limit]
         
         X_val,Y_val= X[limit:,:],Y[limit:]  # sert à calculer les performances
-        
+        print('')
+        print('Temps de fonctionnement')
         for clf_name in self.dct:
             start = time.time()
             clf = self.dct[clf_name]
             clf.fit(X_train,Y_train)
             preds = clf.predict(X_val)
             
+            
             self.successes[clf_name] = np.mean(preds == Y_val)
             
-            print(clf_name,'\t\t\t',time.time()-start)  # on affiche le temps mis pour traiter N lignes
+            print(clf_name, ' '*(20-len(clf_name)) ,'\t',time.time()-start)  # on affiche le temps mis pour traiter N lignes
             
-    def predict(self,X):
+    def predict(self,X,display = False,Y_test = None):
         # Entrées :
             # X = numpy array (N_instances,N_features)
         # Sorties :
@@ -65,9 +67,21 @@ class BaseClassifier():
             
         probas = np.zeros((X.shape[0],))
         
+        
+        print('')
+        print('Taux de succès')
         for name in self.dct:
             clf = self.dct[name]
             probas += clf.predict(X)#*self.successes[name]
+            
+            if type(Y_test) !=  type(None) :  # Y_test == None renvoie un array si Y_test est un array
+                pred_class = [1 if proba > 0.5 else 0 for proba in probas]
+                #Success_tab = [1 if  pred_class[i] == Y_test[i] else 0 for i in range(len(Y_test))]
+                #SuccessRate = np.mean(Success_tab)
+                SuccessRate = np.mean(pred_class == Y_test)
+                
+                if display:   
+                    print(name, ' '*(20-len(name)) ,'\t',SuccessRate)
         
         probas /= len(self.dct)  #sum([self.successes[name]  for name in self.successes ])
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
@@ -195,7 +209,7 @@ Y_test = labels_bin[N_sep:]
 
 C = BaseClassifier()
 C.train(X_train,Y_train)
-Y_pred = C.predict(X_test)
+Y_pred = C.predict(X_test,display = True,Y_test = Y_test)
 
 
 print(Y_pred[:10])

@@ -1,10 +1,11 @@
-#from data.scripts import json_to_text, cleaner, createDatasets
+from data.scripts import json_to_text, cleaner, createDatasets
 from learning.Classifiers import BaseClassifier
 
 
 from itertools import islice  # sert à n'ouvrir que les N premières lignes d'un fichier
 from sklearn.feature_extraction.text import CountVectorizer  # passe du texte brut à un vecteur
 
+import os
 
 # Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
 ORIGIN_FOLDER_1 = "../data/data_books"
@@ -111,7 +112,11 @@ if __name__ == "__main__":
     # Learning
     print("\n--- LEARNING FROM DATASET 1 ---")
     createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
-    model1 = learn(TRAINING_SET_FOLDER_1)
+    
+    DATA_PATHS = os.listdir(TRAINING_SET_FOLDER_1)
+    TRAINING_PATH_1 = DATA_PATHS[0]
+    model1 = learn(TRAINING_PATH_1)
+    
     showResults(model1, TESTING_SET_FOLDER_1)
 
     # TransferLearning

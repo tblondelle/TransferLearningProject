@@ -53,7 +53,7 @@ class BaseRegressor():
     
 
 
-
+"""
 import numpy as np    
 A = np.random.rand(100,20)    
 
@@ -88,19 +88,6 @@ Y_pred = R.predict(X_test)
 print(mean_squared_error(Y_pred,Y_test))
 
 
-
-"""
-
-import numpy as np
-#R = linear_model.LinearRegression()
-R = BaseRegressor()
-
-X = np.array([[0,0],[0,1],[1,0],[1,1]])
-Y = np.array([0,1/3,2/3,1])
-
-R.train(X,Y)
-
-print(R.predict(np.array([[2,1]])))
 
 """
 

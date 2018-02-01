@@ -11,7 +11,7 @@ def tokenize(textList):
         # X : numpy array de taille Nx100
         
     
-    countvectorizer = CountVectorizer(ngram_range=(2,2))    
+    countvectorizer = CountVectorizer(ngram_range=(1,2))    
     X_token = countvectorizer.fit_transform(textList)
     X_token = X_token.toarray()
     

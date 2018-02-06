@@ -10,6 +10,8 @@
 ## 1. Données brutes
 On peut télécharger les données des reviews Amazon à l'URL suivante : http://jmcauley.ucsd.edu/data/amazon/. On conseillera l'utilisation des "petits" subsets, qui sont déjà catégorisés (prendre la version 5-core).
 
+Note : les données de notation sont certainement biaisées (http://bestreviews.com/how-reliable-are-amazon-ratings).
+
 ### 1.1 Informations sur les fichiers du site
 - Le "petit" subset des **books** 5-core (8,898,041 reviews) pèse 3.00Go et est compressé 2.9 fois (le fichier décompressé pèse donc 8.80Go)
 - Par interpolation, on peut en calculer le poids moyen compressé d'**une** review : 362.29 octets et son poids décompressé : 1062.93 octets. (peut être utile pour prévoir l'espace disque nécessaire pour le stockage d'un gros fichier à télécharger et à décompresser)

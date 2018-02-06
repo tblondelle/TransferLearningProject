@@ -15,96 +15,105 @@ from sklearn.feature_extraction.text import TfidfVectorizer
     
 
 
-
-#filename = "../../data/data_books_cleaned/books_aa.txt"  
-    #sur données équilibrées : 75% ; sur données réelles 58% 
-#filename = "../../data/data_videos_cleaned/datavideo_aa.txt"
-    #sur données équilibrées : 58% ; sur données réelles 561%
-
-N = 1000  # nombre de lignes à examiner
-PERCENTAGE_TRAIN = 0.75
-
-TRAINING_SET_FOLDER_1 = "../../data/data_videos_training_set"
-
-class SklearnClassifiers():
-    def __init__(self):
-        self.dct = {
-                'Naive Bayes': GaussianNB(),
-                'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
-                'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
-                'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
-                ###'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
-                'KNN':KNeighborsClassifier(n_neighbors=50),
-                'TreeBagging':BaggingClassifier(n_estimators=75),
-                'AdaBoost':AdaBoostClassifier(n_estimators=15),
-                'Random Forest':RandomForestClassifier(n_estimators=25) 
-                }  # dictionnaire des classifieurs que l'on va utiliser
+class MetaClassifier():
+    def __init__(self, validation_rate=0):
+        self.classifiers = {
+            'Naive Bayes': GaussianNB(),
+            'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
+            'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
+            'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
+            #'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
+            'KNN':KNeighborsClassifier(n_neighbors=50),
+            'TreeBagging':BaggingClassifier(n_estimators=75),
+            'AdaBoost':AdaBoostClassifier(n_estimators=15),
+            'Random Forest':RandomForestClassifier(n_estimators=25) 
+        }  # dictionnaire des classifieurs que l'on va utiliser
    
-        self.successes = {}  # performances de chacun des classifieurs
-                            # sera calculée plus tard  
+        self.successes = {
+            'Naive Bayes': "",
+            'CART':"",
+            'Id3':"",
+            'Decision stump':"",
+            #'Multilayer Perceptron':"",
+            'KNN':"",
+            'TreeBagging':"",
+            'AdaBoost': "",
+            'Random Forest':"" 
+        }  # performances de chacun des classifieurs
+
+        self.validation_rate = validation_rate
 
 
-
-    def train(self,X,Y):
+    def train(self, X, Y):
         # Entrées :
             # X = numpy array (N_instances,N_features)
             # Y = numpy array (N_instances)
         # Sorties :
             # None
-        limit = (9*X.shape[0])//10  # séparation entraînement/validation
-            # la validation sert à mesurer les taux de succès de chaque algo pour
-            # donner plus de poids aux bons algos
-        X_train,Y_train = X[:limit,:],Y[:limit] # ne sert qu'à l'entraînement
+
+        # Séparation entraînement/validation
+        #   La validation sert à mesurer les taux de succès de chaque algo pour
+        #   donner plus de poids aux bons algos.
+        limit = int((1 - self.validation_rate) * X.shape[0])  
+            
+        X_train, Y_train = X[:limit,:], Y[:limit] # ne sert qu'à l'entraînement
+        X_val, Y_val = X[limit:,:], Y[limit:]  # validation, sert à calculer les performances
+
         
-        X_val,Y_val= X[limit:,:],Y[limit:]  # validation, sert à calculer les performances
-        
-        print('\n[TRAIN] Temps de fonctionnement')
-        for clf_name in self.dct:
+        print("\nTemps d'entrainement")
+        print("  {} individus pour l'entrainement".format(len(X_train)))
+        for clf_name in self.classifiers:
             start = time.time()
-            clf = self.dct[clf_name]  # on sort l'objet Scikit-learn
-            clf.fit(X_train,Y_train)  # entraînement
+            clf = self.classifiers[clf_name]  # on sort l'objet Scikit-learn
+            clf.fit(X_train, Y_train)  # Entraînement
+
+            # Validation
+            if len(X_val) > 0:
+                Y_val_pred = clf.predict(X_val)
+                self.successes[clf_name] = np.mean(Y_val_pred == Y_val)
+            else:
+                self.successes[clf_name] = 1 # Pas de validation ==> Poids identiques
             
-            preds = clf.predict(X_val)
+            print("   {:20} --> {:.3f}s".format(clf_name, time.time()-start))  # on affiche la durée de calcul.
+
+        print("\nRésultat de la validation")
+        print("  {} individus pour la validation".format(len(X_val)))
+        if len(X_val) > 0:
+            for clf_name in self.classifiers:
+                print("   {:20} --> {:.1f}%".format(clf_name, self.successes[clf_name]*100)) 
             
-            self.successes[clf_name] = np.mean(preds == Y_val)
-            
-            print("\t{:20} --> {:.3f}s".format(clf_name, time.time()-start))  # on affiche le temps mis pour traiter N lignes
-            
-            
-            
-    def predict(self,X,Y_test = None):
-        # Entrées :
-            # X = numpy array (N_instances,N_features) carac d'entrée des données à prédire
-            # Y_test = numpy array (N_instances) (optionnel) classes réelles 
-                # Quand il est précisé, le taux de succès de chacun dessous_classifieurs s'affiche (print)
-        # Sorties :
-            # Y = numpy array (N_instances)
-        # renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
-        # la décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
+    def predict(self, X, Y=None):
+        """
+        Entrées :
+            X = numpy array (N_instances,N_features) carac d'entrée des données à prédire
+            Y = numpy array (N_instances) (optionnel) classes réelles 
+                # Quand il est précisé, le taux de succès de chacun des sous_classifieurs s'affiche (print)
+        Sorties :
+            Y = numpy array (N_instances)
+        Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
+        La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
+        """
             
         probas = np.zeros((X.shape[0],))
         
-        print('\n[TEST] Taux de succès')
-        for name in self.dct:
-            clf = self.dct[name]
-            probas += clf.predict(X)  #*self.successes[name]
-                            # Actuellement, on ne prend pas en compte les taux de succès
-                            # dé-commenter la ligne pour les prendre en compte
-            if type(Y_test) !=  type(None) :  # Y_test == None renvoie un array si Y_test est un array
+        print('\nTaux de succès')
+        for name in self.classifiers:
+            clf = self.classifiers[name]
+
+            probas += clf.predict(X) * self.successes[name]
+
+            if type(Y) != type(None) :  # Y == None renvoie un array si Y est un array
                 pred_class = [1 if proba > 0.5 else 0 for proba in probas]
-                #Success_tab = [1 if  pred_class[i] == Y_test[i] else 0 for i in range(len(Y_test))]
+                #Success_tab = [1 if  pred_class[i] == Y[i] else 0 for i in range(len(Y))]
                 #SuccessRate = np.mean(Success_tab)
-                SuccessRate = np.mean(pred_class == Y_test)
-                
-                print("\t{:20} --> {:.3f}".format(name,SuccessRate))
+                SuccessRate = np.mean(pred_class == Y)
+
+                print("   {:20} --> {:.1f}%".format(name, SuccessRate*100))
         
-        probas /= len(self.dct)  #sum([self.successes[name]  for name in self.successes ])
-                            # Actuellement, on ne prend pas en compte les taux de succès
-                            # remplacer le len(self.dct) par le commentaire pour les prendre en compte
+        probas /= sum([self.successes[name] for name in self.successes ])
+
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
         return classes
-    
-    
     
     
 def tokenize(textList):
@@ -120,31 +129,25 @@ def tokenize(textList):
     X_token = countvectorizer.fit_transform(textList)
     """ 
     Countvectorizer.fit_transform réalise 2 opérations :
-    1. countvectorizer.fit(textlist) 
-       ne renvoie rien, associe un indice (un entier) à chaque mot dans 
-       la liste de strings textlist
-       ex : si textlist1 = ['aa bb','aa cc','dd']
-       la fonction prépare l'objet à faire 'aa'-> 1
-                                           'bb'-> 2
-                                           'cc'-> 3
-                                           'dd'-> 4
-
-    2. X_token = countvectorizer.transform(textList) : 
-       crée un array numpy de la forme A(i,j) = nombre de mots d'indice I dans la string I
-       ex : si textlist2 = ['aa aa','bb cc','dd aa zz']
-         et si on a fait countvectorizer.fit(textlist1) (cf exemple précédent),
-      
+    - `countvectorizer.fit(textlist)`  ne renvoie rien, associe un indice 
+        (un entier) à chaque mot dans la liste de strings textlist.
+        Ex : si textlist1 = ['aa bb','aa cc','dd'], la fonction prépare 
+        l'objet à faire 'aa'-> 1, 'bb'-> 2, 'cc'-> 3, 'dd'-> 4.
+    - `X_token = countvectorizer.transform(textList)` crée un array numpy de la 
+        forme A(i,j) = nombre de mots d'indice j dans le string i.
+        Ex : si textlist2 = ['aa aa','bb cc','dd aa zz'] et si on a fait 
+        `countvectorizer.fit(textlist1)` (cf exemple précédent), alors
         
-    colonne 2 = nombre de mots "bb" colonne 3 = nombre de mots "cc"      
-    colonne 1 = nombre de mots "aa" | | colonne 4 = nombre de mots "dd" 
-                                  | | | | 
-                                  V V V V
-         la fonction renverra M=[[2,0,0,0],  <- string 1 = 'aa aa'
-                                 [0,1,1,0],  <- string 1 = 'bb cc'
-                                 [1,0,0,1]]  <- string 1 = 'dd aa zz'
+              colonne 2 = nb de mots "bb" colonne 3 = nb de mots "cc"      
+             colonne 1 = nb de mots "aa"| | colonne 4 = nb de mots "dd" 
+                                      | | | | 
+                                      V V V V
+        la fonction renverra    M = [[2,0,0,0],  <- string 1 = 'aa aa'
+                                     [0,1,1,0],  <- string 2 = 'bb cc'
+                                     [1,0,0,1]]  <- string 3 = 'dd aa zz'
            
-    Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)                       
-    ce mot n'est associé à rien
+        Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)                       
+        ce mot n'est associé à rien
 
     Rq : l'array M est une matrice sparse (majoritairement vide), c'est un type d'objet qui permet de 
     ne pas stocker des tas de zéros en mémoire. Pour la transformer en array normal, on peut faire
@@ -152,23 +155,24 @@ def tokenize(textList):
     Le mieux est d'utiliser la décomposition en valeurs singulières, cf plus loin:
     """                              
     
-    # réduction de dimension
+    # Réduction de dimension
     truncatedsvd = TruncatedSVD(n_components=100) # prépare à projeter les données dans un espace à n_components=100 dimensions 
     
     X_reduced_dim = truncatedsvd.fit_transform(X_token)
-    """Comme Countvectorizer.fit_transform, cette instruction réalise 2 opérations
-       truncatedsvd.fit(X_token) 
-           prépare l'objet, lui dit d'utiliser les mots avec la distribution de probabilité de 
-           X_token
+    """
+    Comme Countvectorizer.fit_transform, cette instruction réalise 2 opérations
+    - `truncatedsvd.fit(X_token)` prépare l'objet, lui dit d'utiliser les mots 
+       avec la distribution de probabilité de  X_token
     
-       X_reduced_dim = truncatedsvd.fit_transform(X_token)
-           fait la Décomposition en valeurs singulières (SVD), qui est l'équivelent d'une diagonalisation
-             pour des matrices rectangles. On calcule U,V,D, tq : 
-                 - U carrée, U*transposée(U) = I_m
-                 - D rectancle, diagonale
-                 - V carrée, V*transposée(V) = I_n
-            On renvoie ensuite U[:n:n_components], la matrice U dont on a tronqué les coordonnées
-            qui a concentré l'information, un peu à la manière d'une ACP (pour les maths, cf Wikipédia)
+    - `X_reduced_dim = truncatedsvd.fit_transform(X_token)` fait la Décomposition 
+        en valeurs singulières (SVD), qui est l'équivelent d'une diagonalisation
+        pour des matrices rectangles. On calcule U,V,D, tq : 
+            - U carrée, U*transposée(U) = I_m
+            - D rectancle, diagonale
+            - V carrée, V*transposée(V) = I_n
+        On renvoie ensuite U[:n:n_components], la matrice U dont on a tronqué les 
+        coordonnées qui a concentré l'information, un peu à la manière d'une 
+        ACP (pour les maths, cf Wikipédia).
     """
     
     return(X_reduced_dim)
@@ -203,27 +207,28 @@ def balanceData(data):
 
 def getData(folder):
 
-    filenames = os.listdir(folder)
-
     listdata = []
-    for filename in filenames[:6]: # A résoudre : au bout de 9000 exemples, il crashe.
-        absolute_path =  os.path.join(folder, filename)
-     
-        with open(absolute_path, 'r') as f:
-            for line in f:
-                listdata.append(line.strip().split('\t'))
 
+    filenames = os.listdir(folder)
+    for filename in filenames[:1]: 
+        print(os.path.join(folder, filename))
+     
+        with open(os.path.join(folder, filename), 'r') as f:
+            for line in f:
+
+                line2 = line.strip().split('\t')
+                if len(line2) == 2:
+                    listdata.append(line2)
+                    
     return listdata
 
 
+def learn(folder, balancing=False):
 
+    start_time = time.time()
 
-def main(filename, balancing=False):
-
-    starttime = time.time()
-
-    print("== DATA RETRIEVAL ==")
-    data = getData(filename)
+    print("\n== DATA RETRIEVAL ==")
+    data = getData(folder)
     print("{} lines of data".format(len(data)))
 
     if balancing:
@@ -231,55 +236,81 @@ def main(filename, balancing=False):
         print("{} lines of data kept after balancing".format(len(data)))
 
 
-
+    print("\n== TOKENISATION ==")
     # Write labels in labels and X
-    labels = [line[0] for line in data]
-    X = [line[1] for line in data]
-    
-    # labels, X = zip(*data) # ZIP A CREUSER
+    labels, X = zip(*data)
 
-    print("== TOKENISATION ==")
-    X_token = tokenize(X)
-    print("Time spent for tokenisation: {:.3f}s".format(time.time() - starttime))
+    countvectorizer = CountVectorizer(ngram_range=(1,2))    
+    X_token = countvectorizer.fit_transform(X)
+    truncatedsvd = TruncatedSVD(n_components=100)
+    X_train = truncatedsvd.fit_transform(X_token)
+
+    labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
+    Y_train = np.array(labels_bin)
+    print("Time spent for tokenisation: {:.3f}s".format(time.time() - start_time))
 
 
-    print("== TRAINING TIME ==")
+    print("\n== TRAINING ==")
+    metaClassifier = MetaClassifier(validation_rate = 0.09)
+    metaClassifier.train(X_train,Y_train)
+    print("Time spent for training: {:.3f}s".format(time.time() - start_time))
+
+
+    print("\n== TRAINING RESULTS ==")
+    print("DATA")
+    print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean(Y_train)))
+
+
+    return [countvectorizer, truncatedsvd, metaClassifier]
+
+
+def showResults(model, testing_set_folder):
+
+    [countvectorizer, truncatedsvd, metaClassifier] = model
+
+    print("\n== DATA RETRIEVAL ==")
+    data = getData(testing_set_folder)
+    print("{} lines of data".format(len(data)))
+
+    # Write labels in labels and X_token
+    labels, X = zip(*data)
+
     labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
     labels_bin = np.array(labels_bin)
 
 
-    # Split lines in train and test
-    N_sep = int(len(labels_bin) * PERCENTAGE_TRAIN)
-
-    X_train = X_token[:N_sep,:]    
-    X_test = X_token[N_sep:,:]
-    Y_train = labels_bin[:N_sep]    
-    Y_test = labels_bin[N_sep:]
+    print("\n== TOKENISATION ==")
+    X_test = countvectorizer.transform(X)
+    X_test = truncatedsvd.transform(X_test)
+    Y_pred = metaClassifier.predict(X_test, Y=labels_bin)
 
 
-    # Training
-    C = SklearnClassifiers()
-    C.train(X_train,Y_train)
-    print("Time spent for training: {:.3f}s".format(time.time() - starttime))
+    print("\n== TEST RESULTS ==")
+    print("  Exemples de prédictions : {}".format(Y_pred[:10]))
+    print("  Classes réelles :         {}".format(labels_bin[:10]))
+    print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([labels_bin])))
+    print("  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
+    print("  Taux de succès : {:.3f}".format(np.mean([Y_pred == labels_bin])))
 
-    Y_pred = C.predict(X_test, Y_test=Y_test)
-
-    # Show results
-    print("== RESULTS ==")
-    print("DATA")
-    print("  Taux de revues positives : ",np.mean(labels_bin))
-    print("RESULTS")
-    print("  Exemples de predictions :",Y_pred[:10])
-    print("  Classes réelles :        ",Y_test[:10])
-    print("  Taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
-    print("  Taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
-    print("  Taux de succès", np.mean([Y_pred == Y_test]))
 
 
 if __name__ == "__main__":
-    main(TRAINING_SET_FOLDER_1, balancing=False)
+
+    TRAINING_SET_FOLDER_1 = "../../data/data_videos_training_set"
+    TESTING_SET_FOLDER_1 = "../../data/data_videos_testing_set"
+    #TESTING_SET_FOLDER_1 = TRAINING_SET_FOLDER_1
 
 
+    print("========================")
+    print("|        TRAIN         |")
+    print("========================")
+    model = learn(TRAINING_SET_FOLDER_1, balancing=False)
+    
+
+    print("========================")
+    print("|        TEST          |")
+    print("========================")
+    showResults(model, TESTING_SET_FOLDER_1)
 
 
 

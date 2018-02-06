@@ -1,13 +1,7 @@
-from data.scripts import json_to_text, cleaner, createDatasets
-from learning.Classifiers import BaseClassifier
-
-
-from itertools import islice  # sert à n'ouvrir que les N premières lignes d'un fichier
-
-from sklearn.feature_extraction.text import CountVectorizer  # passe du texte brut à un vecteur
-from sklearn.decomposition import TruncatedSVD
-
 import os
+
+from data.scripts import json_to_text, cleaner, createDatasets
+import learning.Classifiers as clf
 
 # Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
 ORIGIN_FOLDER_1 = "../data/data_books"
@@ -55,54 +49,24 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
 
 
 def learn(training_set_folder):
-    # Opening file
-    with open(training_set_folder) as file:
-        N = 1000 # number of lines we keeeeep
-        head = list(islice(file,N))
-    
-    X_rawtext,Y_train = [],[]
-    for line in head:
-        [y,x] = line.split('\t')
-        
-        y = 1 if y=='Positive' else (0 if y=='Neutral' else -1)
-        #y = 1 if y>3 else (0 if y==3 else -1)
-        
-        if y!= 0:
-            X_rawtext.append(x)
-            Y_train.append(y)
-    
-    
-    # Tokenization
-    with open (DICT_WORDS, 'r') as f:
-        Dict = f.read().split('\n')
-    
-    tokenizer = CountVectorizer()
-    tokenizer.fit(Dict)
-    
-    X_token = tokenizer.transform(X_rawtext)
-        
-    truncatedsvd = TruncatedSVD(n_components=100)
-    truncatedsvd.fit(tokenizer.transform(Dict))
-    X_train = truncatedsvd.transform(X_token)
-    
-    # training
-    # this part will change
-    Clf = BaseClassifier()
-    Clf.train(X_train,Y_train)
-    
-    return Clf
+    print("========================")
+    print("|        TRAIN         |")
+    print("========================")
 
-
+    return clf.learn(training_set_folder, False)
 
 
 
 def transferLearn(old_model, training_set_folder):
-    print("/!\ transferLearn not created yet.")
-    pass
+    return old_model
+
+
 
 def showResults(model, testing_set_folder):
-    print("/!\ showResults not created yet.")
-    pass
+    print("========================")
+    print("|        TEST          |")
+    print("========================")
+    clf.showResults(model, testing_set_folder)
 
 
 
@@ -117,17 +81,14 @@ if __name__ == "__main__":
 
     # Learning
     print("\n--- LEARNING FROM DATASET 1 ---")
-    createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
+    #createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
     
-    DATA_PATHS = os.listdir(TRAINING_SET_FOLDER_1)
-    TRAINING_PATH_1 =  TRAINING_SET_FOLDER_1+'/'+DATA_PATHS[0]
-    model1 = learn(TRAINING_PATH_1)
-    
+    model1 = learn(TRAINING_SET_FOLDER_1)
     showResults(model1, TESTING_SET_FOLDER_1)
 
     # TransferLearning
     print("\n--- TRANSFER LEARNING FROM DATASET 1 APPLIED TO DATASET 2---")
-    createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_2, TRAINING_SET_FOLDER_2, TESTING_SET_FOLDER_2)
+    #createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_2, TRAINING_SET_FOLDER_2, TESTING_SET_FOLDER_2)
     model2 = transferLearn(model1, TRAINING_SET_FOLDER_2) # <---- Difference here!!
     showResults(model2, TESTING_SET_FOLDER_2)
 

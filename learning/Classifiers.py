@@ -12,6 +12,22 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
     
 
+from itertools import islice
+from random import shuffle
+
+
+
+
+
+
+#filename = "../../data/data_books_cleaned/books_aa.txt"  
+    #sur données équilibrées : 75% ; sur données réelles 58% 
+filename = "../../data/data_videos_cleaned/datavideo_aa.txt"
+    #sur données équilibrées : 58% ; sur données réelles 561%
+
+N = 1000  # nombre de lignes à examiner
+PERCENTAGE_TRAIN = 0.75
+
 
 
 
@@ -47,8 +63,7 @@ class BaseClassifier():
         
         X_val,Y_val= X[limit:,:],Y[limit:]  # validation, sert à calculer les performances
         
-        print('')
-        print('Temps de fonctionnement')
+        print('\nTemps de fonctionnement')
         for clf_name in self.dct:
             start = time.time()
             clf = self.dct[clf_name]  # on sort l'objet Scikit-learn
@@ -58,7 +73,7 @@ class BaseClassifier():
             
             self.successes[clf_name] = np.mean(preds == Y_val)
             
-            print(clf_name, ' '*(20-len(clf_name)) ,'\t',time.time()-start)  # on affiche le temps mis pour traiter N lignes
+            print("\t{:20} --> {:.3f}s".format(clf_name, time.time()-start))  # on affiche le temps mis pour traiter N lignes
             
             
             
@@ -74,8 +89,7 @@ class BaseClassifier():
             
         probas = np.zeros((X.shape[0],))
         
-        print('')
-        print('Taux de succès')
+        print('\nTaux de succès')
         for name in self.dct:
             clf = self.dct[name]
             probas += clf.predict(X)  #*self.successes[name]
@@ -87,7 +101,7 @@ class BaseClassifier():
                 #SuccessRate = np.mean(Success_tab)
                 SuccessRate = np.mean(pred_class == Y_test)
                 
-                print(name, ' '*(20-len(name)) ,'\t',SuccessRate)
+                print("\t{:20} --> {:.3f}".format(name,SuccessRate))
         
         probas /= len(self.dct)  #sum([self.successes[name]  for name in self.successes ])
                             # Actuellement, on ne prend pas en compte les taux de succès
@@ -98,25 +112,16 @@ class BaseClassifier():
     
     
     
-    
-     
-
-from itertools import islice
-
-#filename = "../../data/data_books_cleaned/books_aa.txt"  
-    #sur données équilibrées : 75% ; sur données réelles 58% 
-filename = "../../data/data_videos_cleaned/datavideo_aa.txt"
-    #sur données équilibrées : 58% ; sur données réelles 561%
-
-N = 1000  # nombre de lignes à examiner
-
 def tokenize(textList):
-    # Entrées :
+    """
+    Entrées :
         # textList : liste de strings de taille N
     # Sorties :
         # X : numpy array de taille Nx100
     # Transforme chaque phrase (string) en un vecteur grâce à CountVectorizer et TruncatedSVD
+    """
     countvectorizer = CountVectorizer(ngram_range=(1,2))    
+    
     X_token = countvectorizer.fit_transform(textList)
     """ Countvectorizer.fit_transform réalise 2 opérations
        countvectorizer.fit(textlist) 
@@ -174,182 +179,188 @@ def tokenize(textList):
     return(X_reduced_dim)
 
 
+def balanceData(data):
 
+    neg_neutral_indexes = []
+    pos_indexes = []
+    for index, line in enumerate(data):
+        label = line[0]
+        if label in ['Negative','Neutral'] :
+            neg_neutral_indexes.append(index)
+        else :
+            pos_indexes.append(index)
 
-# Option 1 : rien changé
+    small_n = min(len(neg_neutral_indexes), len(pos_indexes))
 
-with open(filename) as myfile:
-    head = list(islice(myfile,N))
+    all_indexes = neg_neutral_indexes[:small_n] + pos_indexes[:small_n]
+    
+    shuffle(all_indexes)
 
-head = [line.split('\t') for line in head]
+    balancedData = [data[i] for i in all_indexes]
 
-labels = [line[0] for line in head]
-X = [line[1] for line in head]
+    print("Proportion of lines kept while balancing data: {}".format(len(balancedData)/len(data)))
 
+    return balancedData
 
-X_token = tokenize(X)
 
-labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
-labels_bin = np.array(labels_bin)
+def getData(filename):
+    # Put file in head
+    with open(filename) as myfile:
+      head = list(islice(myfile,N))
+    return [line.strip().split('\t') for line in head]
 
-print("taux de revues avec 4,5 étoiles : ",np.mean(labels_bin))
 
-N = len(head)//2
 
-X_train = X_token[:N,:]    
-X_test = X_token[N:,:]
+def option1():
+    # Option 1 : rien changé
 
-Y_train = labels_bin[:N]    
-Y_test = labels_bin[N:]
+    head = getData(filename)
 
-C = BaseClassifier()
-C.train(X_train,Y_train)
-Y_pred = C.predict(X_test)
+    # Write labels in labels and X
+    labels = [line[0] for line in head]
+    X = [line[1] for line in head]
 
+    X_token = tokenize(X)
 
+    labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
+    labels_bin = np.array(labels_bin)
 
-print("exemples de predictions :",Y_pred[:10])
-print("Classes réelles :        ",Y_test[:10])
-print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
-print("taux de revues avec 4,5 étoiles (selon la prédisction) :",np.mean([Y_pred]))
-print('%success',np.mean([Y_pred == Y_test]))
+    print("taux de revues positives : ",np.mean(labels_bin))
 
+    # Split lines in train and test
+    N_sep = int(len(labels_bin) * PERCENTAGE_TRAIN)
 
-"""
-# Option 2: probas équitables sur les 2 ensembles
+    X_train = X_token[:N_sep,:]    
+    X_test = X_token[N_sep:,:]
+    Y_train = labels_bin[:N_sep]    
+    Y_test = labels_bin[N_sep:]
 
-with open(filename) as myfile:
-    total_head = list(islice(myfile,N))
 
-total_head = [line.split('\t') for line in total_head]
+    # Training
+    C = BaseClassifier()
+    C.train(X_train,Y_train)
+    Y_pred = C.predict(X_test, Y_test = Y_test)
 
+    # Show results
+    print("Exemples de predictions :",Y_pred[:10])
+    print("Classes réelles :        ",Y_test[:10])
+    print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
+    print("taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
+    print('Success',np.mean([Y_pred == Y_test]), "%")
 
 
-N = len(total_head)
-head = total_head[:(3*N)//4]
-head_test = total_head[(3*N)//4:]
 
+def option2():
+    # Option 2: probas équitables sur les 2 ensembles
 
-I_keep = []
-for i in range(len(head)):
-    label = (head[i][0])
-    if label in ['Negative','Neutral'] :
-        I_keep.append(i)
+    head = getData(filename)
 
-N_small = len(I_keep)
-i = 0
-while len(I_keep)<2*N_small:
-    label = (head[i][0])
-    if label in ['Positive'] :
-        I_keep.append(i)
-    i+=1
+    balanced_head = balanceData(head)
 
+    # Write labels in labels and X
+    labels = [line[0] for line in balanced_head]
+    X = [line[1] for line in balanced_head]
 
-from random import shuffle
-shuffle(I_keep)
 
-head = [head[i] for i in I_keep]
+    X_token = tokenize(X)
 
-labels = [line[0] for line in head]
-X = [line[1] for line in head]
+    labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
+    labels_bin = np.array(labels_bin)
 
-X_token = tokenize(X)
+    # Split lines in train and test
+    N_sep = int(len(labels_bin) * PERCENTAGE_TRAIN)
 
-labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
-labels_bin = np.array(labels_bin)
+    X_train = X_token[:N_sep,:]    
+    X_test = X_token[N_sep:,:]
+    Y_train = labels_bin[:N_sep]    
+    Y_test = labels_bin[N_sep:]
 
 
-N_sep = len(labels_bin)//2  # separation
+    # Training
+    C = BaseClassifier()
+    C.train(X_train,Y_train)
+    Y_pred = C.predict(X_test, Y_test = Y_test)
 
-X_train = X_token[:N_sep,:]    
-X_test = X_token[N_sep:,:]
 
-Y_train = labels_bin[:N_sep]    
-Y_test = labels_bin[N_sep:]
+    print("Exemples de predictions :",Y_pred[:10])
+    print("Classes réelles :        ",Y_test[:10])
+    print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
+    print("taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
+    print('%success',np.mean([Y_pred == Y_test]), "%")
 
-C = BaseClassifier()
-C.train(X_train,Y_train)
-Y_pred = C.predict(X_test,Y_test = Y_test)
 
+def option3():
 
-print("exemples de predictions :",Y_pred[:10])
-print("Classes réelles :        ",Y_test[:10])
-print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
-print("taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
-print('%success',np.mean([Y_pred == Y_test]))
+    # Option 3 : probas équitables sur l'ensemble d'apprentissage, mais pas de test
 
-"""
+    # Un échec
+    # En cours de debogage...
 
+    with open(filename) as myfile:
+        head = list(islice(myfile,N))
 
 
-"""
-# Option 3 : probas équitables sur l'ensemble d'apprentissage, mais pas de test
 
-# Un échec
 
-with open(filename) as myfile:
-    total_head = list(islice(myfile,N))
+    indexes_to_keep = []
+    for i in range(len(head)):
+        n = int(head[i][0])
+        if n < 4:
+            indexes_to_keep.append(i)
 
+    N_small = len(indexes_to_keep)
+    i = 0
+    while len(indexes_to_keep)<2*N_small:
+        n = int(head[i][0])
+        if n >= 4:
+            indexes_to_keep.append(i)
+        i+=1
 
+    head = [head[i] for i in indexes_to_keep]
 
 
-I_keep = []
-for i in range(len(head)):
-    n = int(head[i][0])
-    if n < 4:
-        I_keep.append(i)
+    labels_training = [line[0] for line in head]
+    X_training = [line[2:] for line in head]
 
-N_small = len(I_keep)
-i = 0
-while len(I_keep)<2*N_small:
-    n = int(head[i][0])
-    if n >= 4:
-        I_keep.append(i)
-    i+=1
 
-head = [head[i] for i in I_keep]
+    X_token_tr = tokenize(X_training)
 
+    labels_bin_tr = [ 0 if label in ['1','2','3'] else 1 for label in labels_training]  
+    labels_bin_tr = np.array(labels_bin_tr)
 
-labels_training = [line[0] for line in head]
-X_training = [line[2:] for line in head]
 
 
-X_token_tr = tokenize(X_training)
 
-labels_bin_tr = [ 0 if label in ['1','2','3'] else 1 for label in labels_training]  
-labels_bin_tr = np.array(labels_bin_tr)
+    labels_learning = [line[0] for line in head_test]
+    X_learning = [line[2:] for line in head_test]
 
 
+    X_token_te = tokenize(X_learning)
 
+    labels_bin_te = [ 0 if label in ['1','2','3'] else 1 for label in labels_learning]  
+    labels_bin_te = np.array(labels_bin_te)
 
-labels_learning = [line[0] for line in head_test]
-X_learning = [line[2:] for line in head_test]
 
 
-X_token_te = tokenize(X_learning)
 
-labels_bin_te = [ 0 if label in ['1','2','3'] else 1 for label in labels_learning]  
-labels_bin_te = np.array(labels_bin_te)
+    print(np.mean(labels_bin_te))
 
 
+    C = BaseClassifier()
 
+    C.train(X_token_tr,labels_bin_tr)
+    Y_pred = C.predict(X_token_te)
 
-print(np.mean(labels_bin_te))
+    print("exemples de predictions :",Y_pred[:10])
+    print(labels_bin_te[:10])
 
+    print(np.mean([Y_pred == labels_bin_te]))
 
-C = BaseClassifier()
+    Y_test = labels_bin_te
 
-C.train(X_token_tr,labels_bin_tr)
-Y_pred = C.predict(X_token_te)
 
-print("exemples de predictions :",Y_pred[:10])
-print(labels_bin_te[:10])
-
-print(np.mean([Y_pred == labels_bin_te]))
-
-Y_test = labels_bin_te
-"""
-
+if __name__ == "__main__":
+    option1()
 
 
 

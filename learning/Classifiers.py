@@ -24,9 +24,9 @@ class BaseClassifier():
                 'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
                 ###'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
                 'KNN':KNeighborsClassifier(n_neighbors=50),
-                'TreeBagging':BaggingClassifier(n_estimators = 75),
-                'AdaBoost':AdaBoostClassifier(n_estimators = 15),
-                'Random Forest':RandomForestClassifier(n_estimators = 25) 
+                'TreeBagging':BaggingClassifier(n_estimators=75),
+                'AdaBoost':AdaBoostClassifier(n_estimators=15),
+                'Random Forest':RandomForestClassifier(n_estimators=25) 
                 }  # dictionnaire des classifieurs que l'on va utiliser
    
         self.successes = {}  # performances de chacun des classifieurs
@@ -103,7 +103,11 @@ class BaseClassifier():
 
 from itertools import islice
 
-filename = "../../data/data_books_cleaned/books_aa.txt"
+#filename = "../../data/data_books_cleaned/books_aa.txt"  
+    #sur données équilibrées : 75% ; sur données réelles 58% 
+filename = "../../data/data_videos_cleaned/datavideo_aa.txt"
+    #sur données équilibrées : 58% ; sur données réelles 561%
+
 N = 1000  # nombre de lignes à examiner
 
 def tokenize(textList):
@@ -134,7 +138,7 @@ def tokenize(textList):
     colonne 1 = nombre de mots "aa" | | colonne 4 = nombre de mots "dd" 
                                   | | | | 
                                   V V V V
-         la fonction renverra M= [[2,0,0,0],  <- string 1 = 'aa aa'
+         la fonction renverra M=[[2,0,0,0],  <- string 1 = 'aa aa'
                                  [0,1,1,0],  <- string 1 = 'bb cc'
                                  [1,0,0,1]]  <- string 1 = 'dd aa zz'
            
@@ -172,7 +176,6 @@ def tokenize(textList):
 
 
 
-"""
 # Option 1 : rien changé
 
 with open(filename) as myfile:
@@ -189,7 +192,7 @@ X_token = tokenize(X)
 labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
 labels_bin = np.array(labels_bin)
 
-print(np.mean(labels_bin))
+print("taux de revues avec 4,5 étoiles : ",np.mean(labels_bin))
 
 N = len(head)//2
 
@@ -205,15 +208,14 @@ Y_pred = C.predict(X_test)
 
 
 
-print(Y_pred[:10])
-print(Y_test[:10])
-print(np.mean([ Y_test]))
-print(np.mean([Y_pred]))
+print("exemples de predictions :",Y_pred[:10])
+print("Classes réelles :        ",Y_test[:10])
+print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
+print("taux de revues avec 4,5 étoiles (selon la prédisction) :",np.mean([Y_pred]))
 print('%success',np.mean([Y_pred == Y_test]))
+
+
 """
-
-
-
 # Option 2: probas équitables sur les 2 ensembles
 
 with open(filename) as myfile:
@@ -248,7 +250,6 @@ shuffle(I_keep)
 
 head = [head[i] for i in I_keep]
 
-
 labels = [line[0] for line in head]
 X = [line[1] for line in head]
 
@@ -271,13 +272,13 @@ C.train(X_train,Y_train)
 Y_pred = C.predict(X_test,Y_test = Y_test)
 
 
-print(Y_pred[:10])
-print(Y_test[:10])
-print(np.mean([ Y_test]))
-print(np.mean([Y_pred]))
+print("exemples de predictions :",Y_pred[:10])
+print("Classes réelles :        ",Y_test[:10])
+print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
+print("taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
 print('%success',np.mean([Y_pred == Y_test]))
 
-
+"""
 
 
 
@@ -289,8 +290,6 @@ print('%success',np.mean([Y_pred == Y_test]))
 with open(filename) as myfile:
     total_head = list(islice(myfile,N))
 
-head = total_head[:1500]
-head_test = total_head[1500:]
 
 
 
@@ -343,7 +342,7 @@ C = BaseClassifier()
 C.train(X_token_tr,labels_bin_tr)
 Y_pred = C.predict(X_token_te)
 
-print(Y_pred[:10])
+print("exemples de predictions :",Y_pred[:10])
 print(labels_bin_te[:10])
 
 print(np.mean([Y_pred == labels_bin_te]))

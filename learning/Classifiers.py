@@ -16,7 +16,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 class MetaClassifier():
-    def __init__(self, validation_rate=0):
+    def __init__(self, validation_rate=0.1):
         self.classifiers = {
             'Naive Bayes': GaussianNB(),
             'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
@@ -206,11 +206,17 @@ def balanceData(data):
 
 
 def getData(folder):
+    """
+    Input: 
+     - folder: string of the path of a folder containing txt files.
+    Output:
+     - listdata: list of [Y, X] (e.g. Y = 'Positive', X = "very cool")
+    """
 
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames[:1]: 
+    for filename in filenames: 
         print(os.path.join(folder, filename))
      
         with open(os.path.join(folder, filename), 'r') as f:
@@ -223,15 +229,29 @@ def getData(folder):
     return listdata
 
 
-def learn(folder, balancing=False):
+def learn(training_set_folder, dataBalancing=False):
+    """
+    Input : 
+     - training_set_folder: string of the path of the training_set_folder
+     - dataBalancing: boolean to balance data or not.
+    Output : 
+     - model = 3 elements.
+
+    A partir d'un dossier composé de fichiers texte d'entrainement, 
+    on entraine un certain modèle. On retourne ce modèle composé
+    de trois élements : CountVectorizer, TruncatedSVD et une instance
+    de MetaClassifier.
+    On a la possibilité d'équilibrer les données (avoir autant
+    de reviews positives que négatives) avec l'argument dataBalancing à True.
+    """
 
     start_time = time.time()
 
     print("\n== DATA RETRIEVAL ==")
-    data = getData(folder)
+    data = getData(training_set_folder)
     print("{} lines of data".format(len(data)))
 
-    if balancing:
+    if dataBalancing:
         data = balanceData(data)
         print("{} lines of data kept after balancing".format(len(data)))
 
@@ -260,11 +280,15 @@ def learn(folder, balancing=False):
     print("DATA")
     print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean(Y_train)))
 
-
     return [countvectorizer, truncatedsvd, metaClassifier]
 
 
 def showResults(model, testing_set_folder):
+    """
+    Reprend un ancien modèle composé des trois élements et 
+    l'utilise pour la prédiction sur l'ensemble des fichiers
+    du testing_set_folder.
+    """
 
     [countvectorizer, truncatedsvd, metaClassifier] = model
 
@@ -304,7 +328,7 @@ if __name__ == "__main__":
     print("========================")
     print("|        TRAIN         |")
     print("========================")
-    model = learn(TRAINING_SET_FOLDER_1, balancing=False)
+    model = learn(TRAINING_SET_FOLDER_1, dataBalancing=False)
     
 
     print("========================")

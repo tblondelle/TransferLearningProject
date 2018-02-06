@@ -22,7 +22,6 @@ TESTING_SET_FOLDER_1 = "../data/data_books_testing_set"
 TRAINING_SET_FOLDER_2 = "../data/data_videos_training_set"
 TESTING_SET_FOLDER_2 = "../data/data_videos_testing_set"
 
-DICT_WORDS = "../data/dict_words/20k.txt"
 
 def stripMetadata(source_folder, target_folder):
     """
@@ -53,12 +52,14 @@ def learn(training_set_folder):
     print("|        TRAIN         |")
     print("========================")
 
-    return clf.learn(training_set_folder, False)
+    return clf.learn(training_set_folder, dataBalancing=False)
 
 
 
 def transferLearn(old_model, training_set_folder):
-    return old_model
+    new_model = old_model
+    # Change the identity function to something more complex.
+    return new_model
 
 
 
@@ -71,24 +72,36 @@ def showResults(model, testing_set_folder):
 
 
 if __name__ == "__main__":
-    ## Pre-processing for the two datasets.
-    print("\n--- PREPROCESSING ---")
-    #stripMetadata(ORIGIN_FOLDER_1, STRIPPED_METADATA_FOLDER_1)
-    #simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_1, CLEANED_DATA_FOLDER_1)
+    print("\n################################")
+    print("##                            ##")
+    print("##       PREPROCESSING        ##")
+    print("##                            ##")
+    print("################################")
+    stripMetadata(ORIGIN_FOLDER_1, STRIPPED_METADATA_FOLDER_1)
+    simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_1, CLEANED_DATA_FOLDER_1)
 
-    #stripMetadata(ORIGIN_FOLDER_2, STRIPPED_METADATA_FOLDER_2)
-    #simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_2, CLEANED_DATA_FOLDER_2)
+    stripMetadata(ORIGIN_FOLDER_2, STRIPPED_METADATA_FOLDER_2)
+    simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_2, CLEANED_DATA_FOLDER_2)
 
-    # Learning
-    print("\n--- LEARNING FROM DATASET 1 ---")
-    #createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
+    
+    print("\n################################")
+    print("##                            ##")
+    print("##   LEARNING FROM DATASET 1  ##")
+    print("##                            ##")
+    print("################################")
+    createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
     
     model1 = learn(TRAINING_SET_FOLDER_1)
     showResults(model1, TESTING_SET_FOLDER_1)
 
-    # TransferLearning
-    print("\n--- TRANSFER LEARNING FROM DATASET 1 APPLIED TO DATASET 2---")
-    #createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_2, TRAINING_SET_FOLDER_2, TESTING_SET_FOLDER_2)
+    
+
+    print("\n################################")
+    print("##                            ##")
+    print("##  TRANSFER LEARNING (1->2)  ##")
+    print("##                            ##")
+    print("################################")
+    createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_2, TRAINING_SET_FOLDER_2, TESTING_SET_FOLDER_2)
     model2 = transferLearn(model1, TRAINING_SET_FOLDER_2) # <---- Difference here!!
     showResults(model2, TESTING_SET_FOLDER_2)
 

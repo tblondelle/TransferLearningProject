@@ -1,5 +1,7 @@
 import time
 import numpy as np
+import os
+from random import shuffle
 
 from sklearn.naive_bayes import GaussianNB    
 from sklearn.tree import DecisionTreeClassifier
@@ -12,26 +14,19 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
     
 
-from itertools import islice
-from random import shuffle
-
-
-
-
 
 
 #filename = "../../data/data_books_cleaned/books_aa.txt"  
     #sur données équilibrées : 75% ; sur données réelles 58% 
-filename = "../../data/data_videos_cleaned/datavideo_aa.txt"
+#filename = "../../data/data_videos_cleaned/datavideo_aa.txt"
     #sur données équilibrées : 58% ; sur données réelles 561%
 
 N = 1000  # nombre de lignes à examiner
 PERCENTAGE_TRAIN = 0.75
 
+TRAINING_SET_FOLDER_1 = "../../data/data_videos_training_set"
 
-
-
-class BaseClassifier():
+class SklearnClassifiers():
     def __init__(self):
         self.dct = {
                 'Naive Bayes': GaussianNB(),
@@ -63,7 +58,7 @@ class BaseClassifier():
         
         X_val,Y_val= X[limit:,:],Y[limit:]  # validation, sert à calculer les performances
         
-        print('\nTemps de fonctionnement')
+        print('\n[TRAIN] Temps de fonctionnement')
         for clf_name in self.dct:
             start = time.time()
             clf = self.dct[clf_name]  # on sort l'objet Scikit-learn
@@ -89,7 +84,7 @@ class BaseClassifier():
             
         probas = np.zeros((X.shape[0],))
         
-        print('\nTaux de succès')
+        print('\n[TEST] Taux de succès')
         for name in self.dct:
             clf = self.dct[name]
             probas += clf.predict(X)  #*self.successes[name]
@@ -123,23 +118,24 @@ def tokenize(textList):
     countvectorizer = CountVectorizer(ngram_range=(1,2))    
     
     X_token = countvectorizer.fit_transform(textList)
-    """ Countvectorizer.fit_transform réalise 2 opérations
-       countvectorizer.fit(textlist) 
-           ne renvoie rien, associe un indice (un entier) à chaque mot dans 
-           la liste de strings textlist
-           ex : si textlist1 = ['aa bb','aa cc','dd']
-           la fonction prépare l'objet à faire 'aa'-> 1
-                                               'bb'-> 2
-                                               'cc'-> 3
-                                               'dd'-> 4
-    
-       X_token = countvectorizer.transform(textList) : 
-           créé un array numpy de la forme A(i,j) = nombre de mots d'indice I dans la string I
-           ex : si textlist2 = ['aa aa','bb cc','dd aa zz']
-             et si on a fait countvectorizer.fit(textlist1) (cf exemple précédent),
-          
-            
-      colonne 2 = nombre de mots "bb" colonne 3 = nombre de mots "cc"      
+    """ 
+    Countvectorizer.fit_transform réalise 2 opérations :
+    1. countvectorizer.fit(textlist) 
+       ne renvoie rien, associe un indice (un entier) à chaque mot dans 
+       la liste de strings textlist
+       ex : si textlist1 = ['aa bb','aa cc','dd']
+       la fonction prépare l'objet à faire 'aa'-> 1
+                                           'bb'-> 2
+                                           'cc'-> 3
+                                           'dd'-> 4
+
+    2. X_token = countvectorizer.transform(textList) : 
+       crée un array numpy de la forme A(i,j) = nombre de mots d'indice I dans la string I
+       ex : si textlist2 = ['aa aa','bb cc','dd aa zz']
+         et si on a fait countvectorizer.fit(textlist1) (cf exemple précédent),
+      
+        
+    colonne 2 = nombre de mots "bb" colonne 3 = nombre de mots "cc"      
     colonne 1 = nombre de mots "aa" | | colonne 4 = nombre de mots "dd" 
                                   | | | | 
                                   V V V V
@@ -147,14 +143,13 @@ def tokenize(textList):
                                  [0,1,1,0],  <- string 1 = 'bb cc'
                                  [1,0,0,1]]  <- string 1 = 'dd aa zz'
            
-         Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)                       
-         ce mot n'est associé à rien
-        
-        Rq : l'array M est une matrice sparse (majoritairement vide), c'est un type d'objet qui permet de 
-        ne pas stocker des tas de zéros en mémoire. Pour la transformer en array normal, on peut faire
-        M.toarray(), mais le tableau ainsi crée est souvent trop gros pour être géré.
-        Le mieux est d'utiliser la décomposition en valeurs singulières, cf plus loin:
-        
+    Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)                       
+    ce mot n'est associé à rien
+
+    Rq : l'array M est une matrice sparse (majoritairement vide), c'est un type d'objet qui permet de 
+    ne pas stocker des tas de zéros en mémoire. Pour la transformer en array normal, on peut faire
+    M.toarray(), mais le tableau ainsi crée est souvent trop gros pour être géré.
+    Le mieux est d'utiliser la décomposition en valeurs singulières, cf plus loin:
     """                              
     
     # réduction de dimension
@@ -180,9 +175,12 @@ def tokenize(textList):
 
 
 def balanceData(data):
+    """
+    Return a shorter version of data where an equal number of 
+    (negative and neutral) and positif lines are returned.
+    """
 
-    neg_neutral_indexes = []
-    pos_indexes = []
+    neg_neutral_indexes, pos_indexes = [], []
     for index, line in enumerate(data):
         label = line[0]
         if label in ['Negative','Neutral'] :
@@ -198,34 +196,57 @@ def balanceData(data):
 
     balancedData = [data[i] for i in all_indexes]
 
-    print("Proportion of lines kept while balancing data: {}".format(len(balancedData)/len(data)))
+    #print("Proportion of lines kept while balancing data: {}".format(len(balancedData)/len(data)))
 
     return balancedData
 
 
-def getData(filename):
-    # Put file in head
-    with open(filename) as myfile:
-      head = list(islice(myfile,N))
-    return [line.strip().split('\t') for line in head]
+def getData(folder):
+
+    filenames = os.listdir(folder)
+
+    listdata = []
+    for filename in filenames[:6]: # A résoudre : au bout de 9000 exemples, il crashe.
+        absolute_path =  os.path.join(folder, filename)
+     
+        with open(absolute_path, 'r') as f:
+            for line in f:
+                listdata.append(line.strip().split('\t'))
+
+    return listdata
 
 
 
-def option1():
-    # Option 1 : rien changé
 
-    head = getData(filename)
+def main(filename, balancing=False):
+
+    starttime = time.time()
+
+    print("== DATA RETRIEVAL ==")
+    data = getData(filename)
+    print("{} lines of data".format(len(data)))
+
+    if balancing:
+        data = balanceData(data)
+        print("{} lines of data kept after balancing".format(len(data)))
+
+
 
     # Write labels in labels and X
-    labels = [line[0] for line in head]
-    X = [line[1] for line in head]
+    labels = [line[0] for line in data]
+    X = [line[1] for line in data]
+    
+    # labels, X = zip(*data) # ZIP A CREUSER
 
+    print("== TOKENISATION ==")
     X_token = tokenize(X)
+    print("Time spent for tokenisation: {:.3f}s".format(time.time() - starttime))
 
+
+    print("== TRAINING TIME ==")
     labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
     labels_bin = np.array(labels_bin)
 
-    print("taux de revues positives : ",np.mean(labels_bin))
 
     # Split lines in train and test
     N_sep = int(len(labels_bin) * PERCENTAGE_TRAIN)
@@ -237,69 +258,39 @@ def option1():
 
 
     # Training
-    C = BaseClassifier()
+    C = SklearnClassifiers()
     C.train(X_train,Y_train)
-    Y_pred = C.predict(X_test, Y_test = Y_test)
+    print("Time spent for training: {:.3f}s".format(time.time() - starttime))
+
+    Y_pred = C.predict(X_test, Y_test=Y_test)
 
     # Show results
-    print("Exemples de predictions :",Y_pred[:10])
-    print("Classes réelles :        ",Y_test[:10])
-    print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
-    print("taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
-    print('Success',np.mean([Y_pred == Y_test]), "%")
+    print("== RESULTS ==")
+    print("DATA")
+    print("  Taux de revues positives : ",np.mean(labels_bin))
+    print("RESULTS")
+    print("  Exemples de predictions :",Y_pred[:10])
+    print("  Classes réelles :        ",Y_test[:10])
+    print("  Taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
+    print("  Taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
+    print("  Taux de succès", np.mean([Y_pred == Y_test]))
+
+
+if __name__ == "__main__":
+    main(TRAINING_SET_FOLDER_1, balancing=False)
 
 
 
-def option2():
-    # Option 2: probas équitables sur les 2 ensembles
-
-    head = getData(filename)
-
-    balanced_head = balanceData(head)
-
-    # Write labels in labels and X
-    labels = [line[0] for line in balanced_head]
-    X = [line[1] for line in balanced_head]
 
 
-    X_token = tokenize(X)
-
-    labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]  
-    labels_bin = np.array(labels_bin)
-
-    # Split lines in train and test
-    N_sep = int(len(labels_bin) * PERCENTAGE_TRAIN)
-
-    X_train = X_token[:N_sep,:]    
-    X_test = X_token[N_sep:,:]
-    Y_train = labels_bin[:N_sep]    
-    Y_test = labels_bin[N_sep:]
-
-
-    # Training
-    C = BaseClassifier()
-    C.train(X_train,Y_train)
-    Y_pred = C.predict(X_test, Y_test = Y_test)
-
-
-    print("Exemples de predictions :",Y_pred[:10])
-    print("Classes réelles :        ",Y_test[:10])
-    print("taux de revues avec 4,5 étoiles (données réelles) :",np.mean([Y_test]))
-    print("taux de revues avec 4,5 étoiles (selon la prédiction) :",np.mean([Y_pred]))
-    print('%success',np.mean([Y_pred == Y_test]), "%")
-
-
+"""
 def option3():
-
     # Option 3 : probas équitables sur l'ensemble d'apprentissage, mais pas de test
-
     # Un échec
-    # En cours de debogage...
+    # En cours de deboggage...
 
     with open(filename) as myfile:
         head = list(islice(myfile,N))
-
-
 
 
     indexes_to_keep = []
@@ -346,7 +337,7 @@ def option3():
     print(np.mean(labels_bin_te))
 
 
-    C = BaseClassifier()
+    C = SklearnClassifiers()
 
     C.train(X_token_tr,labels_bin_tr)
     Y_pred = C.predict(X_token_te)
@@ -357,11 +348,7 @@ def option3():
     print(np.mean([Y_pred == labels_bin_te]))
 
     Y_test = labels_bin_te
-
-
-if __name__ == "__main__":
-    option1()
-
+"""
 
 
 

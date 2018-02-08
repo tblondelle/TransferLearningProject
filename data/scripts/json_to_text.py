@@ -28,6 +28,7 @@ class JsonHandler():
             except OSError as exc:
                 print(exc)
                 
+                
             f = open(output_path, "w")
             for line in file_content:
                 data = json.loads(line)

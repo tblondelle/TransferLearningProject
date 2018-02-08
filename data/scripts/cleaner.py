@@ -52,7 +52,8 @@ class TextCleaner():
             try:
                 os.makedirs(os.path.dirname(output_path))
             except OSError as exc:
-                ()
+                #print(exc)
+                pass
             f=open(output_path,"w")
             for i in range(len(data)):
                 # Define sentiment associated with review based on mark

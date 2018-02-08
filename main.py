@@ -70,18 +70,22 @@ def showResults(model, testing_set_folder):
     clf.showResults(model, testing_set_folder)
 
 
+def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2, 
+    stripped_metatdata_folder_1=STRIPPED_METADATA_FOLDER_1, stripped_metatdata_folder_2=STRIPPED_METADATA_FOLDER_2,
+    cleaned_data_folder_1=CLEANED_DATA_FOLDER_1, cleaned_data_folder_2=CLEANED_DATA_FOLDER_2,
+    training_set_folder_1=TRAINING_SET_FOLDER_1, training_set_folder_2=TRAINING_SET_FOLDER_2,
+    testing_set_folder_1=TESTING_SET_FOLDER_1, testing_set_folder_2=TESTING_SET_FOLDER_2):
 
-if __name__ == "__main__":
     print("\n################################")
     print("##                            ##")
     print("##       PREPROCESSING        ##")
     print("##                            ##")
     print("################################")
-    stripMetadata(ORIGIN_FOLDER_1, STRIPPED_METADATA_FOLDER_1)
-    simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_1, CLEANED_DATA_FOLDER_1)
+    stripMetadata(origin_folder_1, stripped_metatdata_folder_1)
+    simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_1, cleaned_data_folder_1)
 
-    stripMetadata(ORIGIN_FOLDER_2, STRIPPED_METADATA_FOLDER_2)
-    simplifyRatingAndKeepRelevantWords(STRIPPED_METADATA_FOLDER_2, CLEANED_DATA_FOLDER_2)
+    stripMetadata(origin_folder_2, stripped_metatdata_folder_2)
+    simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_2, cleaned_data_folder_2)
 
     
     print("\n################################")
@@ -89,10 +93,10 @@ if __name__ == "__main__":
     print("##   LEARNING FROM DATASET 1  ##")
     print("##                            ##")
     print("################################")
-    createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
+    createTrainingSetAndTestSet(cleaned_data_folder_1, training_set_folder_1, testing_set_folder_1)
     
-    model1 = learn(TRAINING_SET_FOLDER_1)
-    showResults(model1, TESTING_SET_FOLDER_1)
+    model1 = learn(training_set_folder_1)
+    showResults(model1, testing_set_folder_1)
 
     
 
@@ -101,8 +105,15 @@ if __name__ == "__main__":
     print("##  TRANSFER LEARNING (1->2)  ##")
     print("##                            ##")
     print("################################")
-    createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_2, TRAINING_SET_FOLDER_2, TESTING_SET_FOLDER_2)
-    model2 = transferLearn(model1, TRAINING_SET_FOLDER_2) # <---- Difference here!!
-    showResults(model2, TESTING_SET_FOLDER_2)
+    createTrainingSetAndTestSet(cleaned_data_folder_2, training_set_folder_2, testing_set_folder_2)
+    model2 = transferLearn(model1, training_set_folder_2) # <---- Difference here!!
+    showResults(model2, testing_set_folder_2)
+
+
+
+
+if __name__ == "__main__":
+    main()
+    
 
 

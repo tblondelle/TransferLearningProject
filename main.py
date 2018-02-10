@@ -81,11 +81,11 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("##       PREPROCESSING        ##")
     print("##                            ##")
     print("################################")
-    stripMetadata(origin_folder_1, stripped_metatdata_folder_1)
-    simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_1, cleaned_data_folder_1)
+    #stripMetadata(origin_folder_1, stripped_metatdata_folder_1)
+    #simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_1, cleaned_data_folder_1)
 
-    stripMetadata(origin_folder_2, stripped_metatdata_folder_2)
-    simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_2, cleaned_data_folder_2)
+    #stripMetadata(origin_folder_2, stripped_metatdata_folder_2)
+    #simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_2, cleaned_data_folder_2)
 
     
     print("\n################################")
@@ -108,8 +108,6 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     createTrainingSetAndTestSet(cleaned_data_folder_2, training_set_folder_2, testing_set_folder_2)
     model2 = transferLearn(model1, training_set_folder_2) # <---- Difference here!!
     showResults(model2, testing_set_folder_2)
-
-
 
 
 if __name__ == "__main__":

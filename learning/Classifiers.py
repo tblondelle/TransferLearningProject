@@ -170,7 +170,7 @@ def tokenize(textList):
             - U carrée, U*transposée(U) = I_m
             - D rectancle, diagonale
             - V carrée, V*transposée(V) = I_n
-        On renvoie ensuite U[:n:n_components], la matrice U dont on a tronqué les 
+        On renvoie ensuite U[:n_components], la matrice U dont on a tronqué les 
         coordonnées qui a concentré l'information, un peu à la manière d'une 
         ACP (pour les maths, cf Wikipédia).
     """

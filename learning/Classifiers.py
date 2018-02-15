@@ -18,27 +18,27 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 class MetaClassifier():
     def __init__(self, validation_rate=0.1):
         self.classifiers = {
-            'Naive Bayes': GaussianNB(),
-            'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
-            'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
-            'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
+            #'Naive Bayes': GaussianNB(),
+            #'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
+            #'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
+            #'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
             #'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
-            'KNN':KNeighborsClassifier(n_neighbors=50),
-            'TreeBagging':BaggingClassifier(n_estimators=75),
-            'AdaBoost':AdaBoostClassifier(n_estimators=15),
-            'Random Forest':RandomForestClassifier(n_estimators=25)
+            #'KNN':KNeighborsClassifier(n_neighbors=50),
+            'TreeBagging':BaggingClassifier(n_estimators=50),
+            'AdaBoost':AdaBoostClassifier(n_estimators=50),
+            'Random Forest':RandomForestClassifier(n_estimators=50)
         }  # dictionnaire des classifieurs que l'on va utiliser
 
         self.successes = {
-            'Naive Bayes': "",
-            'CART':"",
-            'Id3':"",
-            'Decision stump':"",
-            #'Multilayer Perceptron':"",
-            'KNN':"",
-            'TreeBagging':"",
-            'AdaBoost': "",
-            'Random Forest':""
+            'Naive Bayes': 0,
+            'CART':0,
+            'Id3':0,
+            'Decision stump':0,
+            #'Multilayer Perceptron':0,
+            'KNN':0,
+            'TreeBagging':0,
+            'AdaBoost': 0,
+            'Random Forest':0
         }  # performances de chacun des classifieurs
 
         self.validation_rate = validation_rate
@@ -124,9 +124,12 @@ def tokenize(textList,n_features=100):
         # X : numpy array de taille Nx100
     # Transforme chaque phrase (string) en un vecteur grâce à CountVectorizer et TruncatedSVD
     """
-    countvectorizer = CountVectorizer(ngram_range=(1,2))
+    #countvectorizer = CountVectorizer(ngram_range=(1,2))
+    #X_token = countvectorizer.fit_transform(textList)
 
-    X_token = countvectorizer.fit_transform(textList)
+    # On remplace un bête décompte des instances par l'objet tfidfvectorizer
+    tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
+    X_token = tfidf_vectorizer.fit_transform(textlist)
     """
     Countvectorizer.fit_transform réalise 2 opérations :
     - `countvectorizer.fit(textlist)`  ne renvoie rien, associe un indice
@@ -229,7 +232,7 @@ def getData(folder):
     return listdata
 
 
-def learn(training_set_folder, dataBalancing=False,n_features=100):
+def learn(training_set_folder, dataBalancing=False,n_features=2000):
     """
     Input :
      - training_set_folder: string of the path of the training_set_folder
@@ -260,13 +263,27 @@ def learn(training_set_folder, dataBalancing=False,n_features=100):
     # Write labels in labels and X
     labels, X = zip(*data)
 
-    countvectorizer = CountVectorizer(ngram_range=(1,2))
-    X_token = countvectorizer.fit_transform(X)
+
+    # On va trier les données, on trie aussi les X :
+    X_without_neutral = [X[i][:] for i in range(len(X)) if labels[i] in ['Negative']  ]
+    X_without_neutral += [X[i][:] for i in range(len(X)) if labels[i] in ['Positive'] ]
+    X = X_without_neutral
+
+    labels_bin = [ 0 for  label in labels if label in ['Negative']]
+    labels_bin += [ 1 for  label in labels if label in ['Positive']]
+    Y_train = np.array(labels_bin)
+
+
+
+    #countvectorizer = CountVectorizer(ngram_range=(1,2))
+    #X_token = countvectorizer.fit_transform(X)
+
+    tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
+    X_token = tfidf_vectorizer.fit_transform(X)
+
     truncatedsvd = TruncatedSVD(n_components=n_features)
     X_train = truncatedsvd.fit_transform(X_token)
 
-    labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
-    Y_train = np.array(labels_bin)
     print("Time spent for tokenisation: {:.3f}s".format(time.time() - start_time))
 
 
@@ -280,7 +297,7 @@ def learn(training_set_folder, dataBalancing=False,n_features=100):
     print("DATA")
     print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean(Y_train)))
 
-    return [countvectorizer, truncatedsvd, metaClassifier]
+    return [tfidf_vectorizer, truncatedsvd, metaClassifier]
 
 
 def showResults(model, testing_set_folder):
@@ -299,8 +316,14 @@ def showResults(model, testing_set_folder):
     # Write labels in labels and X_token
     labels, X = zip(*data)
 
-    labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
-    labels_bin = np.array(labels_bin)
+    # On va trier les données, on trie aussi les X :
+    X_without_neutral = [X[i][:] for i in range(len(X)) if labels[i] in ['Negative']  ]
+    X_without_neutral += [X[i][:] for i in range(len(X)) if labels[i] in ['Positive'] ]
+    X = X_without_neutral
+
+    labels_bin = [ 0 for  label in labels if label in ['Negative']]
+    labels_bin += [ 1 for  label in labels if label in ['Positive']]
+    #Y_train = np.array(labels_bin)
 
 
     print("\n== TOKENISATION ==")
@@ -316,6 +339,14 @@ def showResults(model, testing_set_folder):
     print("  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
     print("  Taux de succès : {:.3f}".format(np.mean([Y_pred == labels_bin])))
 
+    with open('results','w') as f:
+        f.write("\n== TEST RESULTS ==")
+        f.write("\n  Exemples de prédictions : {}".format(Y_pred[:10]))
+        f.write("\n  Classes réelles :         {}".format(labels_bin[:10]))
+        f.write("\n  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([labels_bin])))
+        f.write("\n  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
+        f.write("\n  Taux de succès : {:.3f}".format(np.mean([Y_pred == labels_bin])))
+
 
 
 if __name__ == "__main__":
@@ -328,14 +359,13 @@ if __name__ == "__main__":
     print("========================")
     print("|        TRAIN         |")
     print("========================")
-    model = learn(TRAINING_SET_FOLDER_1, dataBalancing=False)
+    model = learn(TRAINING_SET_FOLDER_1, dataBalancing=False,n_features = 10)
 
 
     print("========================")
     print("|        TEST          |")
     print("========================")
     showResults(model, TESTING_SET_FOLDER_1)
-
 
 
 """

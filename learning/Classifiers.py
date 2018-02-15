@@ -3,7 +3,7 @@ import numpy as np
 import os
 from random import shuffle
 
-from sklearn.naive_bayes import GaussianNB    
+from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -12,7 +12,7 @@ from sklearn.ensemble import BaggingClassifier, AdaBoostClassifier, RandomForest
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
-    
+
 
 
 class MetaClassifier():
@@ -26,9 +26,9 @@ class MetaClassifier():
             'KNN':KNeighborsClassifier(n_neighbors=50),
             'TreeBagging':BaggingClassifier(n_estimators=75),
             'AdaBoost':AdaBoostClassifier(n_estimators=15),
-            'Random Forest':RandomForestClassifier(n_estimators=25) 
+            'Random Forest':RandomForestClassifier(n_estimators=25)
         }  # dictionnaire des classifieurs que l'on va utiliser
-   
+
         self.successes = {
             'Naive Bayes': "",
             'CART':"",
@@ -38,7 +38,7 @@ class MetaClassifier():
             'KNN':"",
             'TreeBagging':"",
             'AdaBoost': "",
-            'Random Forest':"" 
+            'Random Forest':""
         }  # performances de chacun des classifieurs
 
         self.validation_rate = validation_rate
@@ -54,12 +54,12 @@ class MetaClassifier():
         # Séparation entraînement/validation
         #   La validation sert à mesurer les taux de succès de chaque algo pour
         #   donner plus de poids aux bons algos.
-        limit = int((1 - self.validation_rate) * X.shape[0])  
-            
+        limit = int((1 - self.validation_rate) * X.shape[0])
+
         X_train, Y_train = X[:limit,:], Y[:limit] # ne sert qu'à l'entraînement
         X_val, Y_val = X[limit:,:], Y[limit:]  # validation, sert à calculer les performances
 
-        
+
         print("\nTemps d'entrainement")
         print("  {} individus pour l'entrainement".format(len(X_train)))
         for clf_name in self.classifiers:
@@ -73,29 +73,29 @@ class MetaClassifier():
                 self.successes[clf_name] = np.mean(Y_val_pred == Y_val)
             else:
                 self.successes[clf_name] = 1 # Pas de validation ==> Poids identiques
-            
+
             print("   {:20} --> {:.3f}s".format(clf_name, time.time()-start))  # on affiche la durée de calcul.
 
         print("\nRésultat de la validation")
         print("  {} individus pour la validation".format(len(X_val)))
         if len(X_val) > 0:
             for clf_name in self.classifiers:
-                print("   {:20} --> {:.1f}%".format(clf_name, self.successes[clf_name]*100)) 
-            
+                print("   {:20} --> {:.1f}%".format(clf_name, self.successes[clf_name]*100))
+
     def predict(self, X, Y=None):
         """
         Entrées :
             X = numpy array (N_instances,N_features) carac d'entrée des données à prédire
-            Y = numpy array (N_instances) (optionnel) classes réelles 
+            Y = numpy array (N_instances) (optionnel) classes réelles
                 # Quand il est précisé, le taux de succès de chacun des sous_classifieurs s'affiche (print)
         Sorties :
             Y = numpy array (N_instances)
         Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
         La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
         """
-            
+
         probas = np.zeros((X.shape[0],))
-        
+
         print('\nTaux de succès')
         for name in self.classifiers:
             clf = self.classifiers[name]
@@ -109,14 +109,14 @@ class MetaClassifier():
                 SuccessRate = np.mean(pred_class == Y)
 
                 print("   {:20} --> {:.1f}%".format(name, SuccessRate*100))
-        
+
         probas /= sum([self.successes[name] for name in self.successes ])
 
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
         return classes
-    
-    
-def tokenize(textList):
+
+
+def tokenize(textList,n_features=100):
     """
     Entrées :
         # textList : liste de strings de taille N
@@ -124,63 +124,63 @@ def tokenize(textList):
         # X : numpy array de taille Nx100
     # Transforme chaque phrase (string) en un vecteur grâce à CountVectorizer et TruncatedSVD
     """
-    countvectorizer = CountVectorizer(ngram_range=(1,2))    
-    
+    countvectorizer = CountVectorizer(ngram_range=(1,2))
+
     X_token = countvectorizer.fit_transform(textList)
-    """ 
+    """
     Countvectorizer.fit_transform réalise 2 opérations :
-    - `countvectorizer.fit(textlist)`  ne renvoie rien, associe un indice 
+    - `countvectorizer.fit(textlist)`  ne renvoie rien, associe un indice
         (un entier) à chaque mot dans la liste de strings textlist.
-        Ex : si textlist1 = ['aa bb','aa cc','dd'], la fonction prépare 
+        Ex : si textlist1 = ['aa bb','aa cc','dd'], la fonction prépare
         l'objet à faire 'aa'-> 1, 'bb'-> 2, 'cc'-> 3, 'dd'-> 4.
-    - `X_token = countvectorizer.transform(textList)` crée un array numpy de la 
+    - `X_token = countvectorizer.transform(textList)` crée un array numpy de la
         forme A(i,j) = nombre de mots d'indice j dans le string i.
-        Ex : si textlist2 = ['aa aa','bb cc','dd aa zz'] et si on a fait 
+        Ex : si textlist2 = ['aa aa','bb cc','dd aa zz'] et si on a fait
         `countvectorizer.fit(textlist1)` (cf exemple précédent), alors
-        
-              colonne 2 = nb de mots "bb" colonne 3 = nb de mots "cc"      
-             colonne 1 = nb de mots "aa"| | colonne 4 = nb de mots "dd" 
-                                      | | | | 
+
+              colonne 2 = nb de mots "bb" colonne 3 = nb de mots "cc"
+             colonne 1 = nb de mots "aa"| | colonne 4 = nb de mots "dd"
+                                      | | | |
                                       V V V V
         la fonction renverra    M = [[2,0,0,0],  <- string 1 = 'aa aa'
                                      [0,1,1,0],  <- string 2 = 'bb cc'
                                      [1,0,0,1]]  <- string 3 = 'dd aa zz'
-           
-        Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)                       
+
+        Comme le mot "zz" ne faisait pas partie de textlist1 (la liste utilisée en argument de countvectorizer.fit)
         ce mot n'est associé à rien
 
-    Rq : l'array M est une matrice sparse (majoritairement vide), c'est un type d'objet qui permet de 
+    Rq : l'array M est une matrice sparse (majoritairement vide), c'est un type d'objet qui permet de
     ne pas stocker des tas de zéros en mémoire. Pour la transformer en array normal, on peut faire
     M.toarray(), mais le tableau ainsi crée est souvent trop gros pour être géré.
     Le mieux est d'utiliser la décomposition en valeurs singulières, cf plus loin:
-    """                              
-    
+    """
+
     # Réduction de dimension
-    truncatedsvd = TruncatedSVD(n_components=100) # prépare à projeter les données dans un espace à n_components=100 dimensions 
-    
+    truncatedsvd = TruncatedSVD(n_components=n_features) # prépare à projeter les données dans un espace à n_components=100 dimensions
+
     X_reduced_dim = truncatedsvd.fit_transform(X_token)
     """
     Comme Countvectorizer.fit_transform, cette instruction réalise 2 opérations
-    - `truncatedsvd.fit(X_token)` prépare l'objet, lui dit d'utiliser les mots 
+    - `truncatedsvd.fit(X_token)` prépare l'objet, lui dit d'utiliser les mots
        avec la distribution de probabilité de  X_token
-    
-    - `X_reduced_dim = truncatedsvd.fit_transform(X_token)` fait la Décomposition 
+
+    - `X_reduced_dim = truncatedsvd.fit_transform(X_token)` fait la Décomposition
         en valeurs singulières (SVD), qui est l'équivelent d'une diagonalisation
-        pour des matrices rectangles. On calcule U,V,D, tq : 
+        pour des matrices rectangles. On calcule U,V,D, tq :
             - U carrée, U*transposée(U) = I_m
             - D rectancle, diagonale
             - V carrée, V*transposée(V) = I_n
-        On renvoie ensuite U[:n_components], la matrice U dont on a tronqué les 
-        coordonnées qui a concentré l'information, un peu à la manière d'une 
+        On renvoie ensuite U[:n_components], la matrice U dont on a tronqué les
+        coordonnées qui a concentré l'information, un peu à la manière d'une
         ACP (pour les maths, cf Wikipédia).
     """
-    
+
     return(X_reduced_dim)
 
 
 def balanceData(data):
     """
-    Return a shorter version of data where an equal number of 
+    Return a shorter version of data where an equal number of
     (negative and neutral) and positif lines are returned.
     """
 
@@ -195,7 +195,7 @@ def balanceData(data):
     small_n = min(len(neg_neutral_indexes), len(pos_indexes))
 
     all_indexes = neg_neutral_indexes[:small_n] + pos_indexes[:small_n]
-    
+
     shuffle(all_indexes)
 
     balancedData = [data[i] for i in all_indexes]
@@ -207,7 +207,7 @@ def balanceData(data):
 
 def getData(folder):
     """
-    Input: 
+    Input:
      - folder: string of the path of a folder containing txt files.
     Output:
      - listdata: list of [Y, X] (e.g. Y = 'Positive', X = "very cool")
@@ -216,28 +216,28 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames: 
+    for filename in filenames:
         print(os.path.join(folder, filename))
-     
+
         with open(os.path.join(folder, filename), 'r') as f:
             for line in f:
 
                 line2 = line.strip().split('\t')
                 if len(line2) == 2:
                     listdata.append(line2)
-                    
+
     return listdata
 
 
-def learn(training_set_folder, dataBalancing=False):
+def learn(training_set_folder, dataBalancing=False,n_features=100):
     """
-    Input : 
+    Input :
      - training_set_folder: string of the path of the training_set_folder
      - dataBalancing: boolean to balance data or not.
-    Output : 
+    Output :
      - model = 3 elements.
 
-    A partir d'un dossier composé de fichiers texte d'entrainement, 
+    A partir d'un dossier composé de fichiers texte d'entrainement,
     on entraine un certain modèle. On retourne ce modèle composé
     de trois élements : CountVectorizer, TruncatedSVD et une instance
     de MetaClassifier.
@@ -260,9 +260,9 @@ def learn(training_set_folder, dataBalancing=False):
     # Write labels in labels and X
     labels, X = zip(*data)
 
-    countvectorizer = CountVectorizer(ngram_range=(1,2))    
+    countvectorizer = CountVectorizer(ngram_range=(1,2))
     X_token = countvectorizer.fit_transform(X)
-    truncatedsvd = TruncatedSVD(n_components=100)
+    truncatedsvd = TruncatedSVD(n_components=n_features)
     X_train = truncatedsvd.fit_transform(X_token)
 
     labels_bin = [ 0 if label in ['Negative','Neutral'] else 1 for label in labels]
@@ -285,7 +285,7 @@ def learn(training_set_folder, dataBalancing=False):
 
 def showResults(model, testing_set_folder):
     """
-    Reprend un ancien modèle composé des trois élements et 
+    Reprend un ancien modèle composé des trois élements et
     l'utilise pour la prédiction sur l'ensemble des fichiers
     du testing_set_folder.
     """
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     print("|        TRAIN         |")
     print("========================")
     model = learn(TRAINING_SET_FOLDER_1, dataBalancing=False)
-    
+
 
     print("========================")
     print("|        TEST          |")
@@ -371,7 +371,7 @@ def option3():
 
     X_token_tr = tokenize(X_training)
 
-    labels_bin_tr = [ 0 if label in ['1','2','3'] else 1 for label in labels_training]  
+    labels_bin_tr = [ 0 if label in ['1','2','3'] else 1 for label in labels_training]
     labels_bin_tr = np.array(labels_bin_tr)
 
 
@@ -383,7 +383,7 @@ def option3():
 
     X_token_te = tokenize(X_learning)
 
-    labels_bin_te = [ 0 if label in ['1','2','3'] else 1 for label in labels_learning]  
+    labels_bin_te = [ 0 if label in ['1','2','3'] else 1 for label in labels_learning]
     labels_bin_te = np.array(labels_bin_te)
 
 

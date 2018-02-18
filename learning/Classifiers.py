@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import time
 import numpy as np
 import os
@@ -129,7 +130,8 @@ def tokenize(textList,n_features=100):
 
     # On remplace un bête décompte des instances par l'objet tfidfvectorizer
     tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
-    X_token = tfidf_vectorizer.fit_transform(textlist)
+    X_token = tfidf_vectorizer.fit_transform(textList)
+
     """
     Countvectorizer.fit_transform réalise 2 opérations :
     - `countvectorizer.fit(textlist)`  ne renvoie rien, associe un indice
@@ -219,7 +221,7 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames:
+    for filename in filenames[:3]:
         print(os.path.join(folder, filename))
 
         with open(os.path.join(folder, filename), 'r') as f:

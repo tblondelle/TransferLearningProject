@@ -2,7 +2,7 @@
 import time
 import numpy as np
 import os
-from random import shuffle
+from random import shuffle, sample, seed
 
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
@@ -14,15 +14,16 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-
+seed(8080)
+np.random.seed(8080)
 
 class MetaClassifier():
     def __init__(self, validation_rate=0.1):
         self.classifiers = {
-            #'Naive Bayes': GaussianNB(),
-            #'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
+            'Naive Bayes': GaussianNB(),
+            'CART':DecisionTreeClassifier(criterion='gini', splitter='best'),
             #'Id3':DecisionTreeClassifier(criterion='entropy', splitter='best'),
-            #'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
+            'Decision stump':DecisionTreeClassifier(splitter='best', max_depth = 1),
             #'Multilayer Perceptron':MLPClassifier(hidden_layer_sizes=(20,10), activation='relu', learning_rate='invscaling'),
             #'KNN':KNeighborsClassifier(n_neighbors=50),
             'TreeBagging':BaggingClassifier(n_estimators=50),
@@ -33,10 +34,10 @@ class MetaClassifier():
         self.successes = {
             'Naive Bayes': 0,
             'CART':0,
-            'Id3':0,
+            #'Id3':0,
             'Decision stump':0,
             #'Multilayer Perceptron':0,
-            'KNN':0,
+            #'KNN':0,
             'TreeBagging':0,
             'AdaBoost': 0,
             'Random Forest':0
@@ -186,7 +187,7 @@ def tokenize(textList,n_features=100):
 def balanceData(data):
     """
     Return a shorter version of data where an equal number of
-    (negative and neutral) and positif lines are returned.
+    negative/neutral and positif lines are returned.
     """
 
     neg_neutral_indexes, pos_indexes = [], []
@@ -221,7 +222,7 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames[:3]:
+    for filename in filenames[:5]:
         print(os.path.join(folder, filename))
 
         with open(os.path.join(folder, filename), 'r') as f:
@@ -234,11 +235,12 @@ def getData(folder):
     return listdata
 
 
-def learn(training_set_folder, dataBalancing=False,n_features=2000):
+def learn(training_set_folder, dataBalancing=False,n_features=150):
     """
     Input :
      - training_set_folder: string of the path of the training_set_folder
-     - dataBalancing: boolean to balance data or not.
+     - dataBalancing: boolean to balance data or not
+     - n_features: integer for n_features for SVD (/!\ : exponential complexity !!)
     Output :
      - model = 3 elements.
 
@@ -332,19 +334,20 @@ def showResults(model, testing_set_folder):
     X_test = countvectorizer.transform(X)
     X_test = truncatedsvd.transform(X_test)
     Y_pred = metaClassifier.predict(X_test, Y=labels_bin)
-
+    
+    index_sample = sample(range(len(labels_bin)), k=10)
 
     print("\n== TEST RESULTS ==")
-    print("  Exemples de prédictions : {}".format(Y_pred[:10]))
-    print("  Classes réelles :         {}".format(labels_bin[:10]))
+    print("  Exemples de prédictions : {}".format([Y_pred[i] for i in index_sample]))
+    print("  Classes réelles :         {}".format([labels_bin[i] for i in index_sample]))
     print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([labels_bin])))
     print("  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
-    print("  Taux de succès : {:.3f}".format(np.mean([Y_pred == labels_bin])))
+    print("  Taux de succès : ................................................. {:.3f}".format(np.mean([Y_pred == labels_bin])))
 
     with open('results','w') as f:
         f.write("\n== TEST RESULTS ==")
-        f.write("\n  Exemples de prédictions : {}".format(Y_pred[:10]))
-        f.write("\n  Classes réelles :         {}".format(labels_bin[:10]))
+        f.write("\n  Exemples de prédictions : {}".format([Y_pred[i] for i in index_sample]))
+        f.write("\n  Classes réelles :         {}".format([labels_bin[i] for i in index_sample]))
         f.write("\n  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([labels_bin])))
         f.write("\n  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
         f.write("\n  Taux de succès : {:.3f}".format(np.mean([Y_pred == labels_bin])))

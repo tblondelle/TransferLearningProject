@@ -23,7 +23,7 @@ CATEGORIES = ["data_books",
 
 
 
-for categorie1 in CATEGORIES:
+for categorie1 in CATEGORIES[0:1]:
 
 
     ORIGIN_FOLDER_1 = "../data/" + categorie1

@@ -52,7 +52,7 @@ def learn(training_set_folder):
     print("|        TRAIN         |")
     print("========================")
 
-    return clf.learn(training_set_folder, dataBalancing=False)
+    return clf.learn(training_set_folder, dataBalancing=True)
 
 
 

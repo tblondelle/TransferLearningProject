@@ -3,25 +3,6 @@ import os
 from data.scripts import json_to_text, cleaner, createDatasets
 import learning.Classifiers as clf
 
-# Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
-ORIGIN_FOLDER_1 = "../data/data_books"
-ORIGIN_FOLDER_2 = "../data/data_video" # eg (we will learn video data from books)
-
-# In this folder are files such that : 
-# - every line is of the form "[original ratings]\t[original review]"
-STRIPPED_METADATA_FOLDER_1 = "data/data_books_stripped"
-STRIPPED_METADATA_FOLDER_2 = "data/data_videos_stripped"
-
-# In this folder are files such that : 
-# - every line is of the form "[new ratings]\t[list of relevant words]" with [new ratings] in {"Negative", "Neutral", "Positive"}
-CLEANED_DATA_FOLDER_1 = "../data/data_books_cleaned"
-CLEANED_DATA_FOLDER_2 = "../data/data_videos_cleaned"
-
-TRAINING_SET_FOLDER_1 = "../data/data_books_training_set"
-TESTING_SET_FOLDER_1 = "../data/data_books_testing_set"
-TRAINING_SET_FOLDER_2 = "../data/data_videos_training_set"
-TESTING_SET_FOLDER_2 = "../data/data_videos_testing_set"
-
 
 def stripMetadata(source_folder, target_folder):
     """

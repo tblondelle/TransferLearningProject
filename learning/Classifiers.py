@@ -102,7 +102,7 @@ class MetaClassifier():
         for name in self.classifiers:
             clf = self.classifiers[name]
 
-            probas += clf.predict(X) * self.successes[name]
+            probas += clf.predict(X) * np.exp(self.successes[name])
 
             if type(Y) != type(None) :  # Y == None renvoie un array si Y est un array
                 pred_class = [1 if proba > 0.5 else 0 for proba in probas]
@@ -112,7 +112,7 @@ class MetaClassifier():
 
                 print("   {:20} --> {:.1f}%".format(name, SuccessRate*100))
 
-        probas /= sum([self.successes[name] for name in self.successes ])
+        probas /= sum([np.exp(self.successes[name]) for name in self.successes ])
 
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
         return classes
@@ -374,75 +374,6 @@ if __name__ == "__main__":
 
 
 """
-def option3():
-    # Option 3 : probas équitables sur l'ensemble d'apprentissage, mais pas de test
-    # Un échec
-    # En cours de deboggage...
-
-    with open(filename) as myfile:
-        head = list(islice(myfile,N))
-
-
-    indexes_to_keep = []
-    for i in range(len(head)):
-        n = int(head[i][0])
-        if n < 4:
-            indexes_to_keep.append(i)
-
-    N_small = len(indexes_to_keep)
-    i = 0
-    while len(indexes_to_keep)<2*N_small:
-        n = int(head[i][0])
-        if n >= 4:
-            indexes_to_keep.append(i)
-        i+=1
-
-    head = [head[i] for i in indexes_to_keep]
-
-
-    labels_training = [line[0] for line in head]
-    X_training = [line[2:] for line in head]
-
-
-    X_token_tr = tokenize(X_training)
-
-    labels_bin_tr = [ 0 if label in ['1','2','3'] else 1 for label in labels_training]
-    labels_bin_tr = np.array(labels_bin_tr)
-
-
-
-
-    labels_learning = [line[0] for line in head_test]
-    X_learning = [line[2:] for line in head_test]
-
-
-    X_token_te = tokenize(X_learning)
-
-    labels_bin_te = [ 0 if label in ['1','2','3'] else 1 for label in labels_learning]
-    labels_bin_te = np.array(labels_bin_te)
-
-
-
-
-    print(np.mean(labels_bin_te))
-
-
-    C = SklearnClassifiers()
-
-    C.train(X_token_tr,labels_bin_tr)
-    Y_pred = C.predict(X_token_te)
-
-    print("exemples de predictions :",Y_pred[:10])
-    print(labels_bin_te[:10])
-
-    print(np.mean([Y_pred == labels_bin_te]))
-
-    Y_test = labels_bin_te
-"""
-
-
-
-"""
 TP = len([i for i in range(len(Y_pred)) if Y_pred[i] == 1 and Y_test[i] == 0])
 TN = len([i for i in range(len(Y_pred)) if Y_pred[i] == -1 and Y_test[i] == 1])
 FP = len([i for i in range(len(Y_pred)) if Y_pred[i] == 1 and Y_test[i] == 1])
@@ -456,5 +387,4 @@ print(" \t\t Actual class")
 print(" \t\t Good \t Bad")
 print("Predicted Good \t {} \t {}".format(TP,FN))
 print("          Bad \t {} \t {}".format(FP,TN))
-
 """

@@ -2,26 +2,37 @@
 
 
 import string
-from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-import enchant
+from nltk.stem.snowball import SnowballStemmer
 import os
 
-#define spell check dictionnaries
-DUS = enchant.Dict("en_US")
-DUK = enchant.Dict("en_UK")
 
 #Define sentiment based on rating
-negative = [1,2]
-neutral = [3,4]
-positive = [5]
+negative = [1,2,3]
+neutral = []
+positive = [4,5]
+
+stemmer = SnowballStemmer("english", ignore_stopwords=True)
 
 # set the stopwords and punctuation, in a list so you can adjust
 stop_words=list(set(stopwords.words('english')))
 punctuation = list(set(string.punctuation))
 # Adjusts sets of stop words and punctuation
 punctuation = punctuation + ["''"] + ["``"] #punctuation adjustment 
-stop_words = stop_words + ["n't"] #stopwords adjustment, tokenize separate didn't in did and n't
+stop_words = stop_words
+
+stop_words2 = []
+
+for e in stop_words:
+    try:
+        if e[-3:] == "n't" or e[-1] =="n":
+            pass
+        else:
+            stop_words2 += [e]
+    except:
+        print("word isn't long enough")
+
+stop_words = stop_words2
 
 # Define simple function to check if a string is a number 
 def is_number(s):
@@ -41,6 +52,7 @@ class TextCleaner():
             print("TARGET_LOCATION must differ from SOURCE_LOCATION")
             
     def clean(self, separator="\t"):
+        count = 0
         list_files = os.listdir(self.source)
         for datafile in list_files:
             data = []
@@ -52,9 +64,9 @@ class TextCleaner():
             try:
                 os.makedirs(os.path.dirname(output_path))
             except OSError as exc:
-                #print(exc)
+                print(exc)
                 pass
-            f=open(output_path,"w")
+            f=open(output_path,"w",encoding="utf-8")
             for i in range(len(data)):
                 # Define sentiment associated with review based on mark
                 sentiment = ""
@@ -66,28 +78,24 @@ class TextCleaner():
                     sentiment = "Positive"
                 #Tokenize, clean of stop words and simple punctuation
                 current_text = (data[i][1]).lower()
-                tokens = word_tokenize(current_text)
+                #remove punctuation
+                for e in current_text:
+                    if e in punctuation:
+                        current_text = current_text.replace(e,"")
+                #tokens = word_tokenize(current_text)
+                tokens = current_text.split(" ")
                 #remove stop words
                 filtered = [w for w in tokens if w not in stop_words]
-                #remove punctuation
-                filtered = [w for w in filtered if w not in punctuation]
                 #remove numbers
                 filtered = [w for w in filtered if not is_number(w)]
                 #prepare string 
                 filtered_review = ""
                 for e in filtered:
-                    #check if the words exists in the dictionnary
-                    if DUS.check(e) or DUK.check(e):
-                        filtered_review += e + " " 
-                    else:
-                    #correct the word with the dictionnary suggestion
-                        corrected = DUK.suggest(e)
-                        #if there isn't a correction drop the word
-                        if len(corrected)==0:
-                            pass
-                        else:
-                            filtered_review += corrected[0] + " "
+                    filtered_review += stemmer.stem(e) + " "
                 f.write(sentiment + separator + filtered_review + "\n")
+                count += 1
+                if count % 1000 == 0:
+                    print(count,"lignes écrites")
             
             print("New file written at {}".format(output_path))
             

@@ -13,7 +13,7 @@ os.chdir(DIRECTORY)
 from data_loader import *
 
 class W2V():
-    def __init__(self,vector_size,window_size,model_train_data,correlation_train_data,correlation_test_data):
+    def __init__(self,vector_size,window_size,threshold_factor,model_train_data,correlation_train_data,correlation_test_data):
         '''
         This class is used to train a word2vec model and use it to determine the note of a review
         First, the word2vec model is trained on the model_train_data corpus
@@ -30,6 +30,8 @@ class W2V():
         self.correlation_test_data = correlation_test_data
         self.means = None
         self.correlations = None
+        self.threshold_factor = threshold_factor
+        self.threshold = 0
     def train(self,save_filename):
         '''
         Will train the Word2Vec model and save it in the file save_filename, the model can be loaded later with the load_model method
@@ -104,14 +106,58 @@ class W2V():
         for line in self.correlation_test_data:
             for i in range(self.vector_size):
                 self.means[i] += line[1][i]/n
+        n_ignored = 0
+        n_treated = 0
         good = 0
+        for line in self.correlation_test_data:
+            n_treated += 1
+            score = 0
+            for i in range(self.vector_size): 
+                score += self.correlations[i] * (line[1][i]-self.means[i])
+            if abs(score)<self.threshold:
+                n_ignored += 1
+            else:
+                if score * (2*(line[0]>3)-1) > 0:
+                    good += 1
+        return("efficiency : "+str(100*good/(n-n_ignored)) + "% \n reviews ignored : "+str(n_ignored) )
+    def compute_threshold(self):
+        '''
+        Compute the threshold above which a score is considered as significant 
+        '''
+        n = len(self.correlation_test_data)
+        self.means = [0 for i in range(self.vector_size)]
+        for line in self.correlation_test_data:
+            for i in range(self.vector_size):
+                self.means[i] += line[1][i]/n
+        mean_deviation = 0
         for line in self.correlation_test_data:
             score = 0
             for i in range(self.vector_size): 
                 score += self.correlations[i] * (line[1][i]-self.means[i])
-            if score * (2*(line[0]>3)-1) > 0:
-                good += 1
-        return(100*good/n)
+            mean_deviation += abs(score)/n
+        self.threshold = self.threshold_factor*mean_deviation
+    def predict(self,review):
+        '''
+        Returns 0 if the score of the review is too close to 0 (can not determine if positive or negative)
+        Returns -1 if negative and 1 if positive
+        '''
+        review = review.split()
+        vect = np.zeros(self.vector_size)
+        for token in review:
+            try:
+                vect += self.model[token]                    
+            except:
+                ()
+        norm = np.linalg.norm(vect)
+        if norm>0:
+            vect = vect/norm
+        score = 0
+        for i in range(self.vector_size): 
+            score += self.correlations[i] * (vect[i]-self.means[i])
+        if abs(score)<self.threshold:
+            return(0)
+        return(2*(score>0)-1)
+            
         
 ### CLEANING        
 
@@ -126,7 +172,7 @@ correlation_train_data = []
 correlation_test_data = []
 
 # Loading the training data
-data = loader.load_raw_data("apps.txt")[:10000]
+data = loader.load_raw_data("apps.txt")
 for line in data:
     line[1].strip().lower()
 
@@ -144,7 +190,7 @@ for i, line in enumerate(data):
     correlation_train_data.append([line[0],tokens])
     
 # Loading the test data
-data = loader.load_raw_data("cell_phones.txt")[:10000]
+data = loader.load_raw_data("cell_phones.txt")
 for line in data:
     line[1].strip().lower()
 
@@ -153,7 +199,7 @@ n = len(data)
 # Cleaning the test data
 for i, line in enumerate(data):
     if i%int(n/100) == 0:
-        print("cleaning train data : ", int(100*i/n),"%")
+        print("cleaning test data : ", int(100*i/n),"%")
     tok = tkr.tokenize(line[1])
     tokens = []
     for t in tok:
@@ -166,7 +212,7 @@ model_train_data = correlation_test_data + correlation_train_data
 
 ### Création et apprentissage du Word2Vec et calcul des corrélations
 
-w = W2V(20,5,model_train_data,correlation_train_data,correlation_test_data)
+w = W2V(20,5,0.8,model_train_data,correlation_train_data,correlation_test_data)
 
 print("training model")
 w.train("testw2vclass")
@@ -176,6 +222,9 @@ w.tokens_to_vect()
 
 print("computing correlations")
 w.compute_correlations()
+
+print("computing threshold")
+w.compute_threshold()
 
 print(w.get_efficiency())
 

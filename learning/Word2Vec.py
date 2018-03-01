@@ -16,9 +16,13 @@ class W2V():
     def __init__(self,vector_size,window_size,threshold_factor,model_train_data,correlation_train_data,correlation_test_data):
         '''
         This class is used to train a word2vec model and use it to determine the note of a review
-        First, the word2vec model is trained on the model_train_data corpus
-        Then the correlations between the values of the vector and the note of the reviews from the correlation_train_data corpus are computed
-        Then we use those correlations to determine the notes of the correlation_test_data corpus
+        - First, the word2vec model is trained on the model_train_data corpus
+        - Then the correlations between the values of the vector and the note of the reviews from the correlation_train_data corpus are computed
+        - Then we use those correlations to determine the notes of the correlation_test_data corpus, 
+        we compute a score, if this score is positive, so is the review and the other way around 
+        
+        We use a threshold in order to not take into account the reviews for which the note is unsure (if the score is too close to 0), this
+        threshold is the mean value of the score times threshold_factor. the higher threshold factor, the more reviews will be ignored.
         
         NOTE : The model_train_data corpus should contain reviews from both the train and test corpuses for increased efficiency.
         '''
@@ -172,7 +176,7 @@ correlation_train_data = []
 correlation_test_data = []
 
 # Loading the training data
-data = loader.load_raw_data("apps.txt")
+data = loader.load_raw_data("apps.txt")[:20000]
 for line in data:
     line[1].strip().lower()
 
@@ -190,7 +194,7 @@ for i, line in enumerate(data):
     correlation_train_data.append([line[0],tokens])
     
 # Loading the test data
-data = loader.load_raw_data("cell_phones.txt")
+data = loader.load_raw_data("cell_phones.txt")[:20000]
 for line in data:
     line[1].strip().lower()
 

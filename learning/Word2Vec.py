@@ -7,15 +7,23 @@ import os
 import multiprocessing
 from time import *
 
-DIRECTORY = "C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning/"
+DIRECTORY = "C:/Users/Antoine/Documents/Centrale/3A/Transfer_learning/" # The directory must contain the DataLoader script
 os.chdir(DIRECTORY)
 
 from data_loader import *
 
 class W2V():
     def __init__(self,vector_size,window_size,model_train_data,correlation_train_data,correlation_test_data):
+        '''
+        This class is used to train a word2vec model and use it to determine the note of a review
+        First, the word2vec model is trained on the model_train_data corpus
+        Then the correlations between the values of the vector and the note of the reviews from the correlation_train_data corpus are computed
+        Then we use those correlations to determine the notes of the correlation_test_data corpus
+        
+        NOTE : The model_train_data corpus should contain reviews from both the train and test corpuses for increased efficiency.
+        '''
         self.vector_size = vector_size
-        self.window_size = window_size
+        self.window_size = window_size 
         self.model = None
         self.model_train_data = model_train_data
         self.correlation_train_data = correlation_train_data
@@ -24,7 +32,7 @@ class W2V():
         self.correlations = None
     def train(self,save_filename):
         '''
-        processed data must be an array of tokenized sentences
+        Will train the Word2Vec model and save it in the file save_filename, the model can be loaded later with the load_model method
         '''
         train_data = []
         for line in self.model_train_data:
@@ -40,6 +48,9 @@ class W2V():
     def load_model(self,save_filename):
         self.model = Word2Vec.load(save_filename)
     def tokens_to_vect(self):
+        '''
+        Transforms the tokenized text from the train and test datasets into vectors using the Word2Vec model 
+        '''
         vects = []
         for line in self.correlation_train_data:
             vect_line = []
@@ -72,6 +83,9 @@ class W2V():
             vects.append(vect_line)
         self.correlation_test_data = vects
     def compute_correlations(self):
+        '''
+        Computes the correlations between the values of the vectors and the notes of the reviews from the training set
+        '''
         self.means = [0 for i in range(self.vector_size)]
         self.correlations = [0 for i in range(self.vector_size)]
         n = len(self.correlation_train_data)
@@ -82,6 +96,9 @@ class W2V():
             for i in range(self.vector_size):
                 self.correlations[i] += (line[1][i]-self.means[i])*(2*(line[0]>3)-1)
     def get_efficiency(self):
+        '''
+        Tries to guess the notes of the test set and returns the efficiency
+        '''
         n = len(self.correlation_test_data)
         self.means = [0 for i in range(self.vector_size)]
         for line in self.correlation_test_data:
@@ -96,8 +113,11 @@ class W2V():
                 good += 1
         return(100*good/n)
         
+### CLEANING        
 
+loader = DataLoader("text_data") #The text files that will be loaded must be contained in DIRECTORY/text_data
 
+STOPWORDS = stopwords.words('english')
 tkr = RegexpTokenizer('[a-zA-Z0-9@]+')
 stemmer = LancasterStemmer()
 
@@ -105,47 +125,57 @@ model_train_data = []
 correlation_train_data = []
 correlation_test_data = []
 
-loader = DataLoader("text_data")
-
+# Loading the training data
 data = loader.load_raw_data("apps.txt")[:10000]
 for line in data:
     line[1].strip().lower()
 
 n = len(data)
 
+# Cleaning the correlations training data
 for i, line in enumerate(data):
-    print("cleaning train data : ", int(100*i/n),"%")
+    if i%int(n/100) == 0:
+        print("cleaning train data : ", int(100*i/n),"%")
     tok = tkr.tokenize(line[1])
     tokens = []
     for t in tok:
-        if t not in stopwords.words('english'):
+        if t not in STOPWORDS:
            tokens.append(stemmer.stem(t)) 
     correlation_train_data.append([line[0],tokens])
     
+# Loading the test data
 data = loader.load_raw_data("cell_phones.txt")[:10000]
 for line in data:
     line[1].strip().lower()
 
 n = len(data)
 
+# Cleaning the test data
 for i, line in enumerate(data):
-    print("cleaning test data : ", int(100*i/n),"%")
+    if i%int(n/100) == 0:
+        print("cleaning train data : ", int(100*i/n),"%")
     tok = tkr.tokenize(line[1])
     tokens = []
     for t in tok:
-        if t not in stopwords.words('english'):
+        if t not in STOPWORDS:
            tokens.append(stemmer.stem(t)) 
     correlation_test_data.append([line[0],tokens])
 
+# Creating the Word2Vec training data
 model_train_data = correlation_test_data + correlation_train_data
+
+### Création et apprentissage du Word2Vec et calcul des corrélations
 
 w = W2V(20,5,model_train_data,correlation_train_data,correlation_test_data)
 
 print("training model")
 w.train("testw2vclass")
+
 print("tokens_to_vect")
 w.tokens_to_vect()
+
 print("computing correlations")
 w.compute_correlations()
+
 print(w.get_efficiency())
 

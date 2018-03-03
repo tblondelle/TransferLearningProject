@@ -62,12 +62,15 @@ def getData(folder):
 
 
 class W2V():
-    def __init__(self, vector_size, window_size):
+    def __init__(self, vector_size, window_size, threshold_factor=0.8):
         '''
         This class is used to train a word2vec model and use it to determine the note of a review
         First, the word2vec model is trained on the model_train_data corpus
         Then the correlations between the values of the vector and the note of the reviews from the correlation_train_data corpus are computed
         Then we use those correlations to determine the notes of the correlation_test_data corpus
+        
+        We use a threshold in order to not take into account the reviews for which the note is unsure (if the score is too close to 0), this
+        threshold is the mean value of the score times threshold_factor. the higher threshold factor, the more reviews will be ignored.
         
         NOTE : The model_train_data corpus should contain reviews from both the train and test corpuses for increased efficiency.
         '''
@@ -77,6 +80,7 @@ class W2V():
         self.model = None
         self.training_data = []
         self.threshold = 0
+        self.threshold_factor = threshold_factor
         self.std_vector = np.zeros(vector_size)
     
     def train(self, training_set_folder, dataBalancing=False, save_filename="save_filename"):
@@ -84,7 +88,7 @@ class W2V():
         Will train the Word2Vec model and save it in the file save_filename, the model can be loaded later with the load_model method
         '''
 
-        train_data = getData(training_set_folder)#[:50] #Pour ALLER PLUS VITE LORS DES TEST !!
+        train_data = getData(training_set_folder)[:50] #Pour ALLER PLUS VITE LORS DES TEST !!
 
         if dataBalancing:
             train_data = balanceData(train_data)
@@ -122,6 +126,7 @@ class W2V():
         
         for line in vects_train_data:
             self.std_vector += (line[1] - mean_vector) * (1 if (line[0] == 'Positive') else -1)
+         
 
     def tokens_to_vect(self, data):
         '''
@@ -152,13 +157,19 @@ class W2V():
         mean_vector = np.zeros(self.vector_size)
         for line in correlation_test_data:
             mean_vector += line[1]/n
-        
+
+
+        n_ignored = 0
+        n_treated = 0
         good = 0
         for line in correlation_test_data:
+            n_treated += 1
             score = np.matmul(np.array(self.std_vector), line[1] - np.array(mean_vector))
-            if score * (1 if (line[0] == 'Positive') else -1) > self.threshold:
+            if abs(score)<self.threshold:
+                n_ignored += 1
+            elif score * (1 if (line[0] == 'Positive') else -1) > self.threshold:
                 good += 1
-        return good/n
+        return (good/n, n_treated, n_ignored)
 
 
 
@@ -172,8 +183,11 @@ class W2V():
 
         vects_test_data = self.tokens_to_vect(test_data)
 
+
+        success_rate, n_treated, n_ignored = self.get_efficiency(vects_test_data) 
+
         print("\n== TEST RESULTS ==")
-        print("  Taux de succès : ............................. {:.3f}".format(self.get_efficiency(vects_test_data)))
+        print("  Taux de succès : ............................. {:.3f}".format(success_rate))
 
 
 

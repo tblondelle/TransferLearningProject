@@ -128,7 +128,7 @@ class MetaClassifier():
         start_time = time.time()
 
         print("\n== DATA RETRIEVAL ==")
-        data = getData(training_set_folder)#[:50] #Pour ALLER PLUS VITE LORS DES TEST !!
+        data = getData(training_set_folder)[:50] #Pour ALLER PLUS VITE LORS DES TEST !!
         print("{} lines of data".format(len(data)))
 
         if dataBalancing:

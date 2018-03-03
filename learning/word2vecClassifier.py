@@ -1,9 +1,8 @@
+import os
 import numpy as np
 import multiprocessing
-from gensim.models.word2vec import Word2Vec
-import os
 from random import shuffle, seed
-
+from gensim.models.word2vec import Word2Vec
 
 
 np.random.seed(1000)

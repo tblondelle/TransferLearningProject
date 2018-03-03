@@ -306,7 +306,6 @@ if __name__ == "__main__":
 
     TRAINING_SET_FOLDER_1 = "../../data/data_videos_training_set"
     TESTING_SET_FOLDER_1 = "../../data/data_videos_testing_set"
-    #TESTING_SET_FOLDER_1 = TRAINING_SET_FOLDER_1
 
 
     print("========================")

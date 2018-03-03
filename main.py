@@ -1,8 +1,6 @@
-import os
-
-from data.scripts import json_to_text, cleaner, createDatasets
-import learning.sklearnClassifier as sklearnClassifier
-import learning.word2vecClassifier as word2vecClassifier
+from data.scripts import convertJsonToText, cleanData, createDatasets
+from learning import sklearnClassifier
+from learning import word2vecClassifier
 
 
 # Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
@@ -32,7 +30,7 @@ def stripMetadata(source_folder, target_folder):
     Perfom the stripping
     Put the results in file (or files) in target_folder
     """
-    json_to_text.JsonHandler(source_folder, target_folder).convert()
+    convertJsonToText.JsonHandler(source_folder, target_folder).convert()
 
 def simplifyRatingAndKeepRelevantWords(source_folder, target_folder):
     """
@@ -40,7 +38,7 @@ def simplifyRatingAndKeepRelevantWords(source_folder, target_folder):
     Simplify the rating and keep relevant words only
     Put the results in file (or files) in target_folder
     """
-    cleaner.TextCleaner(source_folder, target_folder).clean()
+    cleanData.TextCleaner(source_folder, target_folder).clean()
     
     
 def createTrainingSetAndTestSet(source_folder, target_training_set_folder, target_testing_set_folder):
@@ -50,11 +48,12 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
 
 
 
-def learn(training_set_folder):
+def createModelsAndlearn(training_set_folder):
     print("========================")
     print("|        TRAIN         |")
     print("========================")
 
+    # Create the models and make them learn.
     sklearn_classifier = sklearnClassifier.MetaClassifier(validation_rate=0.1, n_features=150)
     sklearn_classifier.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
 
@@ -62,7 +61,6 @@ def learn(training_set_folder):
     word2vec_classifier.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
 
     return [sklearn_classifier, word2vec_classifier]
-
 
 
 def transferLearn(old_models, training_set_folder):
@@ -114,7 +112,7 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("################################")
     #createTrainingSetAndTestSet(cleaned_data_folder_1, training_set_folder_1, testing_set_folder_1)
     
-    model1 = learn(training_set_folder_1)
+    model1 = createModelsAndlearn(training_set_folder_1)
     showResults(model1, testing_set_folder_1)
 
     

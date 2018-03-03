@@ -1,7 +1,0 @@
-
-== TEST RESULTS ==
-  Exemples de prédictions : [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  Classes réelles :         [0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  Taux de revues avec 4,5 étoiles (données réelles) : 0.781
-  Taux de revues avec 4,5 étoiles (selon la prédiction) : 0.990
-  Taux de succès : 0.785

@@ -58,20 +58,35 @@ def getData(folder):
 
     return listdata
 
-
+def binariseLabels(Y):
+    Y_bin = []
+    for i, label in enumerate(Y):
+        if Y[i] in ['Negative', 'Neutral']:
+            Y_bin.append(0)
+        elif Y[i] == 'Positive':
+            Y_bin.append(1)
+    return Y_bin
 
 class W2V():
     def __init__(self, vector_size, window_size, threshold_factor=0.8):
         '''
-        This class is used to train a word2vec model and use it to determine the note of a review
-        First, the word2vec model is trained on the model_train_data corpus
-        Then the correlations between the values of the vector and the note of the reviews from the correlation_train_data corpus are computed
-        Then we use those correlations to determine the notes of the correlation_test_data corpus
+        This class is used to train a word2vec model and use it to 
+        determine the note of a review.
+
+        First, the word2vec model is trained on the model_train_data corpus.
+        Then the correlations between the values of the vector and the 
+        note of the reviews from the correlation_train_data corpus are 
+        computed.
+        Then we use those correlations to determine the notes of the 
+        correlation_test_data corpus.
         
-        We use a threshold in order to not take into account the reviews for which the note is unsure (if the score is too close to 0), this
-        threshold is the mean value of the score times threshold_factor. the higher threshold factor, the more reviews will be ignored.
+        We use a threshold in order to not take into account the reviews 
+        for which the note is unsure (if the score is too close to 0), 
+        this threshold is the mean value of the score times threshold_factor. 
+        the higher threshold factor, the more reviews will be ignored.
         
-        NOTE : The model_train_data corpus should contain reviews from both the train and test corpuses for increased efficiency.
+        NOTE : The model_train_data corpus should contain reviews from 
+        both the train and test corpuses for increased efficiency.
         '''
         self.name = "word2vec_classifier"
         self.vector_size = vector_size
@@ -82,128 +97,187 @@ class W2V():
         self.threshold_factor = threshold_factor
         self.std_vector = np.zeros(vector_size)
     
-    def train(self, training_set_folder, dataBalancing=False, save_filename="save_filename"):
+    def train(self, X, Y, save_filename="save_filename"):
         '''
-        Will train the Word2Vec model and save it in the file save_filename, the model can be loaded later with the load_model method
+        Train the Word2Vec model and save it in the file save_filename, 
+        the model can be loaded later with the load_model method.
         '''
 
-        train_data = getData(training_set_folder)[:50] #Pour ALLER PLUS VITE LORS DES TEST !!
 
-        if dataBalancing:
-            train_data = balanceData(train_data)
-            print("{} lines of data kept after balancing".format(len(train_data)))
-
-        for data in train_data:
-            data[1] = data[1].split(" ")
-
-
-        self.training_data += train_data
-
-        train_data = [line[1] for line in self.training_data]
-        print(len(train_data))
+        # Add to the model the data as a list of [label, sentence].
+        # If train is run multiple times, old data is not lost.
+        self.training_data += list(zip(Y, X))
         
-        self.model = Word2Vec(sentences=train_data,
+
+        # Run the word2vec model on the data only (no label)
+        labels, train_data = zip(*self.training_data)
+        self.model = Word2Vec(sentences=[sentence.split() for sentence in list(train_data)],
             size=self.vector_size, 
             window=self.window_size, 
             negative=20,
             iter=50,
             seed=1000,
             workers=multiprocessing.cpu_count())
-
-        print("computing correlations")
-        self.compute_correlations(self.tokens_to_vect(self.training_data))
-
-
-    def compute_correlations(self, vects_train_data):
-        '''
-        Computes the correlations between the values of the vectors and the notes of the reviews from the training set
-        '''
-        n = len(vects_train_data)
-        mean_vector = np.zeros(self.vector_size)
-        for line in vects_train_data:
-            mean_vector += line[1]/n
         
-        for line in vects_train_data:
-            self.std_vector += (line[1] - mean_vector) * (1 if (line[0] == 'Positive') else -1)
-         
+        # Store the global standart error vector of the model.
+        vects = self.sentencesToVects(train_data)
+        self.std_vector = self.setCorrelation(labels, vects)
 
-    def tokens_to_vect(self, data):
+        
+    def setCorrelation(self, labels, vects):
         '''
-        Transforms the tokenized text from the train and test datasets into vectors using the Word2Vec model 
+        Computes the correlation between the values of the vectors and 
+        the notes of the reviews from the training set
         '''
-        vects = []
-        for line in data:
-            vect_line = [line[0], np.zeros(self.vector_size)]
-            for token in line[1]:
+
+        mean_vector = np.zeros(self.vector_size)
+        for vect in vects:
+            mean_vector += vect
+        mean_vector /= len(vects)
+        
+        std_vector = np.zeros(self.vector_size)
+        for i in range(vects.shape[0]):
+            if labels[i] == 1:
+                std_vector += (vects[i, :] - mean_vector)
+            elif labels[i] == 0:
+                std_vector -= (vects[i, :] - mean_vector)
+            else:
+                print('There is probably an error')
+
+        return std_vector
+
+    def sentencesToVects(self, X):
+        '''
+        Transforms the tokenized text from the train and test 
+        datasets into vectors using the Word2Vec model 
+        '''
+
+        sentences = [sentence.split() for sentence in X]
+
+        vects = np.zeros((len(X), self.vector_size))
+        for i, sentence in enumerate(sentences):
+            for token in sentence:
                 try:
-                    vect_line[1] += self.model[token]
-                except:
-                    ()
+                    self.model[token]
+                except KeyError as err:
+                    #print("KeyError for the word: {}".format(token))
+                    pass 
+                else:               
+                    vects[i, :] += self.model[token]
             # Normalize the vector.
-            norm = np.linalg.norm(vect_line[1])
+            norm = np.linalg.norm(vects[i, :])
             if norm != 0:
-                vect_line[1] = vect_line[1]/norm
+                vects[i, :] /= norm
 
-            vects.append(vect_line)
         return vects
 
-  
-    def get_efficiency(self, correlation_test_data):
+    def compute_threshold(self):
         '''
-        Tries to guess the notes of the test set and returns the efficiency
+        Compute the threshold above which a score is considered as significant 
         '''
-        n = len(correlation_test_data)
-        mean_vector = np.zeros(self.vector_size)
-        for line in correlation_test_data:
-            mean_vector += line[1]/n
+        n = len(self.correlation_test_data)
+        self.means = [0 for i in range(self.vector_size)]
+        for line in self.correlation_test_data:
+            for i in range(self.vector_size):
+                self.means[i] += line[1][i]/n
+        mean_deviation = 0
+        for line in self.correlation_test_data:
+            score = 0
+            for i in range(self.vector_size): 
+                score += self.correlations[i] * (line[1][i]-self.means[i])
+            mean_deviation += abs(score)/n
+        self.threshold = self.threshold_factor*mean_deviation
+        
 
+    def predict(self, X):
+        '''
+        Returns 0 if the score of the review is too close to 0 (can not determine if positive or negative)
+        Returns -1 if negative and 1 if positive
+        '''
 
-        n_ignored = 0
-        n_treated = 0
-        good = 0
-        for line in correlation_test_data:
-            n_treated += 1
-            score = np.matmul(np.array(self.std_vector), line[1] - np.array(mean_vector))
+        X = model.sentencesToVects(X)
+
+        n = len(X)
+        mean_vector = np.mean(X)
+
+        Y_pred = np.zeros(n)
+        for i, vect in enumerate(X):
+            score = np.matmul(self.std_vector, vect - mean_vector)
+            if score > self.threshold:
+                Y_pred[i] = 1
+            elif score < -self.threshold:
+                Y_pred[i] = 0
+
             if abs(score)<self.threshold:
                 n_ignored += 1
-            elif score * (1 if (line[0] == 'Positive') else -1) > self.threshold:
-                good += 1
-        return (good/n, n_treated, n_ignored)
+                Y_pred[i] = -1
+
+        return Y_pred, n
 
 
-
-    def showResults(self, testing_set_folder):
-
-        test_data = getData(testing_set_folder)
-
-        for data in test_data:
-            data[1] = data[1].split(" ")
+    def test(self, Y, X):
 
 
-        vects_test_data = self.tokens_to_vect(test_data)
+        X = model.sentencesToVects(X)
 
+        n = len(Y)
+        mean_vector = np.mean(X)
 
-        success_rate, n_treated, n_ignored = self.get_efficiency(vects_test_data) 
+        n_ignored = 0
+        Y_pred = np.zeros(n)
+        for i, vect in enumerate(X):
+            score = np.matmul(self.std_vector, vect - mean_vector)
+            if score > self.threshold:
+                Y_pred[i] = 1
+            elif score < -self.threshold:
+                Y_pred[i] = 0
 
-        print("\n== TEST RESULTS ==")
-        print("  Taux de succès : ............................. {:.3f}".format(success_rate))
+            if abs(score)<self.threshold:
+                n_ignored += 1
+                Y_pred[i] = -1
+
+        success_rate = np.mean(Y_pred == np.array(Y))
+
+        return Y_pred, success_rate, n
 
 
 
 if __name__ == "__main__":
 
-    TRAINING_SET_FOLDER_1 = "../../data/data_videos_training_set"
-    TESTING_SET_FOLDER_1 = "../../data/data_videos_testing_set"
+    TRAINING_SET_FOLDER_1 = "../../data/data_books_training_set"
+    TESTING_SET_FOLDER_1 = "../../data/data_books_testing_set"
     #TESTING_SET_FOLDER_1 = TRAINING_SET_FOLDER_1
     
+
+
     print("========================")
     print("|        TRAIN         |")
     print("========================")
+    # On fournit les labels Y sous forme binaire (0 ou 1)
+    # et les données X sous forme de liste de phrases.
+    data = getData(TRAINING_SET_FOLDER_1)[:100]
+    data = balanceData(data)
+
+    labels, X = zip(*data)
+    Y = binariseLabels(labels)    
+
+
     model = W2V(20,5)
-    model.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
+    model.train(X, Y)
 
 
     print("========================")
     print("|        TEST          |")
     print("========================")
-    model.showResults(TESTING_SET_FOLDER_1)
+
+
+    data = getData(TESTING_SET_FOLDER_1)[:60]
+    labels, X = zip(*data)
+    Y = binariseLabels(labels)
+
+
+
+    preds, success_rate, n_treated = model.test(Y, X) 
+    print(preds)
+    print(success_rate)
+    print(n_treated)

@@ -69,6 +69,15 @@ def getData(folder):
 
     return listdata
 
+def binariseLabels(Y):
+    Y_bin = []
+    for i, label in enumerate(Y):
+        if Y[i] in ['Negative', 'Neutral']:
+            Y_bin.append(0)
+        elif Y[i] == 'Positive':
+            Y_bin.append(1)
+    
+    return Y_bin
 
 class MetaClassifier():
     def __init__(self, validation_rate=0.1, n_features=150):
@@ -128,7 +137,7 @@ class MetaClassifier():
         start_time = time.time()
 
         print("\n== DATA RETRIEVAL ==")
-        data = getData(training_set_folder)[:50] #Pour ALLER PLUS VITE LORS DES TEST !!
+        data = getData(training_set_folder)#[:5000] #Pour ALLER PLUS VITE LORS DES TEST !!
         print("{} lines of data".format(len(data)))
 
         if dataBalancing:
@@ -141,15 +150,8 @@ class MetaClassifier():
         labels, X = zip(*data)
 
 
-        # On va trier les données, on trie aussi les X :
-        X_without_neutral = [X[i][:] for i in range(len(X)) if labels[i] in ['Negative']  ]
-        X_without_neutral += [X[i][:] for i in range(len(X)) if labels[i] in ['Positive'] ]
-        X = X_without_neutral
 
-        labels_bin = [ 0 for  label in labels if label in ['Negative']]
-        labels_bin += [ 1 for  label in labels if label in ['Positive']]
-        Y = np.array(labels_bin)
-
+        Y = binariseLabels(labels)
 
 
         #countvectorizer = CountVectorizer(ngram_range=(1,2))
@@ -168,10 +170,6 @@ class MetaClassifier():
 
 
         print("\n== TRAINING ==")
-        
-
-
-
         # Entrées :
             # X = numpy array (N_instances,N_features)
             # Y = numpy array (N_instances)
@@ -222,7 +220,7 @@ class MetaClassifier():
     def predict(self, X, Y=None):
         """
         Entrées :
-            X = numpy array (N_instances,N_features) carac d'entrée des données à prédire
+            X = list of sentences. A sentence is a sequence of words ([a-zA-Z]*) separated by a space.
             Y = numpy array (N_instances) (optionnel) classes réelles
                 # Quand il est précisé, le taux de succès de chacun des sous_classifieurs s'affiche (print)
         Sorties :
@@ -230,6 +228,9 @@ class MetaClassifier():
         Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
         La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
         """
+        print("\n== TOKENISATION ==")
+        X = self.tfidf_vectorizer.transform(X)
+        X = self.truncatedsvd.transform(X) # numpy array (N_instances,N_features) carac d'entrée des données à prédire
 
         probas = np.zeros((X.shape[0],))
 
@@ -246,11 +247,16 @@ class MetaClassifier():
                 SuccessRate = np.mean(pred_class == Y)
 
                 print("   {:20} --> {:.1f}%".format(name, SuccessRate*100))
-
         probas /= sum([np.exp(self.successes[name]) for name in self.successes ])
 
         classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
-        return classes
+        
+        if type(Y) != type(None) :
+            success_rate = np.mean(np.array(Y) == classes)
+        else:
+            success_rate = "unknown without the labels"
+
+        return classes, success_rate, len(classes)
 
 
 
@@ -268,38 +274,22 @@ class MetaClassifier():
         # Write labels in labels and X_token
         labels, X = zip(*data)
 
-        # On va trier les données, on trie aussi les X :
-        X_without_neutral = [X[i][:] for i in range(len(X)) if labels[i] in ['Negative']  ]
-        X_without_neutral += [X[i][:] for i in range(len(X)) if labels[i] in ['Positive'] ]
-        X = X_without_neutral
-
-        labels_bin = [ 0 for  label in labels if label in ['Negative']]
-        labels_bin += [ 1 for  label in labels if label in ['Positive']]
-        #Y_train = np.array(labels_bin)
-
-
-        print("\n== TOKENISATION ==")
-        X_test = self.tfidf_vectorizer.transform(X)
-        X_test = self.truncatedsvd.transform(X_test)
-        Y_pred = self.predict(X_test, Y=labels_bin)
+        Y = binariseLabels(labels)
         
-        index_sample = sample(range(len(labels_bin)), k=10)
+        Y_pred, success_rate, n = self.predict(X, Y=Y)
+        
+
+
+
+        index_sample = sample(range(len(Y)), k=10)
 
         print("\n== TEST RESULTS ==")
         print("  Exemples de prédictions : {}".format([Y_pred[i] for i in index_sample]))
-        print("  Classes réelles :         {}".format([labels_bin[i] for i in index_sample]))
-        print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([labels_bin])))
-        print("  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
-        print("  Taux de succès : ................................................. {:.3f}".format(np.mean([Y_pred == labels_bin])))
-
-        with open('results','w') as f:
-            f.write("\n== TEST RESULTS ==")
-            f.write("\n  Exemples de prédictions : {}".format([Y_pred[i] for i in index_sample]))
-            f.write("\n  Classes réelles :         {}".format([labels_bin[i] for i in index_sample]))
-            f.write("\n  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([labels_bin])))
-            f.write("\n  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean([Y_pred])))
-            f.write("\n  Taux de succès : {:.3f}".format(np.mean([Y_pred == labels_bin])))
-
+        print("  Classes réelles :         {}".format([Y[i] for i in index_sample]))
+        print("  nombre de prédictions : {}".format(n))
+        print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([Y])))
+        print("  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean(Y_pred)))
+        print("  Taux de succès : ................................................. {:.3f}".format(success_rate))
 
 
 if __name__ == "__main__":

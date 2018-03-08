@@ -1,7 +1,27 @@
-import os
+from data.scripts import convertJsonToText, cleanData, createDatasets
+from learning import sklearnClassifier
+from learning import word2vecClassifier
 
-from data.scripts import json_to_text, cleaner, createDatasets
-import learning.Classifiers as clf
+
+# Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
+ORIGIN_FOLDER_1 = "../data/data_books"
+ORIGIN_FOLDER_2 = "../data/data_video" # eg (we will learn video data from books)
+
+# In this folder are files such that : 
+# - every line is of the form "[original ratings]\t[original review]"
+STRIPPED_METADATA_FOLDER_1 = "data/data_books_stripped"
+STRIPPED_METADATA_FOLDER_2 = "data/data_videos_stripped"
+
+# In this folder are files such that : 
+# - every line is of the form "[new ratings]\t[list of relevant words]" with [new ratings] in {"Negative", "Neutral", "Positive"}
+CLEANED_DATA_FOLDER_1 = "../data/data_books_cleaned"
+CLEANED_DATA_FOLDER_2 = "../data/data_videos_cleaned"
+
+TRAINING_SET_FOLDER_1 = "../data/data_books_training_set"
+TESTING_SET_FOLDER_1 = "../data/data_books_testing_set"
+TRAINING_SET_FOLDER_2 = "../data/data_videos_training_set"
+TESTING_SET_FOLDER_2 = "../data/data_videos_testing_set"
+
 
 
 def stripMetadata(source_folder, target_folder):
@@ -10,7 +30,7 @@ def stripMetadata(source_folder, target_folder):
     Perfom the stripping
     Put the results in file (or files) in target_folder
     """
-    json_to_text.JsonHandler(source_folder, target_folder).convert()
+    convertJsonToText.JsonHandler(source_folder, target_folder).convert()
 
 def simplifyRatingAndKeepRelevantWords(source_folder, target_folder):
     """
@@ -18,7 +38,7 @@ def simplifyRatingAndKeepRelevantWords(source_folder, target_folder):
     Simplify the rating and keep relevant words only
     Put the results in file (or files) in target_folder
     """
-    cleaner.TextCleaner(source_folder, target_folder).clean()
+    cleanData.TextCleaner(source_folder, target_folder).clean()
     
     
 def createTrainingSetAndTestSet(source_folder, target_training_set_folder, target_testing_set_folder):
@@ -28,27 +48,43 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
 
 
 
-def learn(training_set_folder):
+def createModelsAndlearn(training_set_folder):
     print("========================")
     print("|        TRAIN         |")
     print("========================")
 
-    return clf.learn(training_set_folder, dataBalancing=True)
+    # Create the models and make them learn.
+    sklearn_classifier = sklearnClassifier.MetaClassifier(validation_rate=0.1, n_features=150)
+    sklearn_classifier.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
+
+    word2vec_classifier = word2vecClassifier.W2V(20,5)
+    word2vec_classifier.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
+
+    return [sklearn_classifier, word2vec_classifier]
+
+
+def transferLearn(old_models, training_set_folder):
+    new_models = []
+
+    for old_model in old_models:
+        if old_model.name == "sklearn_classifier":
+            new_models.append(old_model)
+        if old_model.name == "word2vec_classifier":
+            old_model.train(training_set_folder, dataBalancing=True)
+            new_models.append(old_model)
+
+    return new_models
 
 
 
-def transferLearn(old_model, training_set_folder):
-    new_model = old_model
-    # Change the identity function to something more complex.
-    return new_model
-
-
-
-def showResults(model, testing_set_folder):
+def showResults(models, testing_set_folder):
     print("========================")
     print("|        TEST          |")
     print("========================")
-    clf.showResults(model, testing_set_folder)
+
+    for model in models:
+        print("\n\n" + model.name)
+        model.showResults(testing_set_folder)
 
 
 def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2, 
@@ -74,9 +110,9 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("##   LEARNING FROM DATASET 1  ##")
     print("##                            ##")
     print("################################")
-    createTrainingSetAndTestSet(cleaned_data_folder_1, training_set_folder_1, testing_set_folder_1)
+    #createTrainingSetAndTestSet(cleaned_data_folder_1, training_set_folder_1, testing_set_folder_1)
     
-    model1 = learn(training_set_folder_1)
+    model1 = createModelsAndlearn(training_set_folder_1)
     showResults(model1, testing_set_folder_1)
 
     

@@ -47,10 +47,10 @@ class W2V():
             size=self.vector_size, 
             window=self.window_size, 
             negative=20,
-            iter=50,
-            seed=1000,
+            iter=10,
+            seed=100,
             workers=multiprocessing.cpu_count())
-        self.model.save("save_filename")
+        self.model.save(save_filename)
     def load_model(self,save_filename):
         self.model = Word2Vec.load(save_filename)
     def tokens_to_vect(self):
@@ -123,7 +123,7 @@ class W2V():
             else:
                 if score * (2*(line[0]>3)-1) > 0:
                     good += 1
-        return("efficiency : "+str(100*good/(n-n_ignored)) + "% \n reviews ignored : "+str(n_ignored) )
+        return("efficiency : "+str(100*good/(n-n_ignored)) + "% ; reviews ignored : "+str(n_ignored) )
     def compute_threshold(self):
         '''
         Compute the threshold above which a score is considered as significant 
@@ -176,7 +176,7 @@ correlation_train_data = []
 correlation_test_data = []
 
 # Loading the training data
-data = loader.load_raw_data("apps.txt")[:20000]
+data = loader.load_raw_data("apps.txt")[:10000]
 for line in data:
     line[1].strip().lower()
 
@@ -194,7 +194,7 @@ for i, line in enumerate(data):
     correlation_train_data.append([line[0],tokens])
     
 # Loading the test data
-data = loader.load_raw_data("cell_phones.txt")[:20000]
+data = loader.load_raw_data("cell_phones.txt")[:10000]
 for line in data:
     line[1].strip().lower()
 
@@ -212,11 +212,11 @@ for i, line in enumerate(data):
     correlation_test_data.append([line[0],tokens])
 
 # Creating the Word2Vec training data
-model_train_data = correlation_test_data + correlation_train_data
+model_train_data =  correlation_train_data + correlation_test_data
 
 ### Création et apprentissage du Word2Vec et calcul des corrélations
 
-w = W2V(20,5,0.8,model_train_data,correlation_train_data,correlation_test_data)
+w = W2V(20,5,0.4,model_train_data,correlation_train_data,correlation_test_data)
 
 print("training model")
 w.train("testw2vclass")
@@ -231,4 +231,5 @@ print("computing threshold")
 w.compute_threshold()
 
 print(w.get_efficiency())
+
 

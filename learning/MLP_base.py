@@ -57,9 +57,6 @@ class my_RNN(nn.Module):
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.linear3 = nn.Linear(hidden_size, 1)
 
-        # le réseaux linéaires sert à ce que la sortie ait la bonne taille
-
-
 
     def forward(self, input):
         # Entrées :
@@ -83,7 +80,7 @@ class my_RNN(nn.Module):
         #   - optimizer (pytorch object) : le résultat de optim.SGD ou optim.Adam
         #   - criterion (pytorch object) : le résultat de nn.L1Loss ou nn.MSELoss
         # Sorties :
-        #   none
+        #   perte (float) : la valeur de la perte globale
         optimizer.zero_grad()
         input_length = input_variable.size()[0]
 
@@ -230,7 +227,7 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
         #Pour un équilibrage 75/25
         pairs_using_numbers = [(-1,text)  for (target,text) in pairs  if (target == 'Negative' or target == 'Neutral')]
         Positive_reviews =  [(1,text) for (target,text) in pairs if target == 'Positive']
-        pairs_using_numbers += Positive_reviews[:int(len(pairs_using_numbers)*3)]
+        pairs_using_numbers += Positive_reviews[:int(len(pairs_using_numbers)*3)] # différence ici
         tr_pairs = pairs_using_numbers
         """
         #Pour un équilibrage 50/50

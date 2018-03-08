@@ -3,7 +3,8 @@
 
 import string
 from nltk.corpus import stopwords
-from nltk.stem.snowball import SnowballStemmer
+#from nltk.stem.snowball import SnowballStemmer
+from nltk.stem.wordnet import WordNetLemmatizer
 import os
 
 
@@ -12,8 +13,8 @@ negative = [1,2,3]
 neutral = []
 positive = [4,5]
 
-stemmer = SnowballStemmer("english", ignore_stopwords=True)
-
+#stemmer = SnowballStemmer("english", ignore_stopwords=True)
+lmtzr = WordNetLemmatizer()
 # set the stopwords and punctuation, in a list so you can adjust
 stop_words=list(set(stopwords.words('english')))
 punctuation = list(set(string.punctuation))
@@ -91,7 +92,7 @@ class TextCleaner():
                 #prepare string 
                 filtered_review = ""
                 for e in filtered:
-                    filtered_review += stemmer.stem(e) + " "
+                    filtered_review += lmtzr.lemmatize(e) + " "
                 f.write(sentiment + separator + filtered_review + "\n")
                 count += 1
                 if count % 1000 == 0:

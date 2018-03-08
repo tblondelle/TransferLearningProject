@@ -109,11 +109,15 @@ class W2V():
             iter=50,
             seed=1000,
             workers=multiprocessing.cpu_count())
-
+        
+        self.model.save(save_filename)
+        
         print("computing correlations")
         self.compute_correlations(self.tokens_to_vect(self.training_data))
 
-
+    def load_model(self,save_filename):
+        self.model = Word2Vec.load(save_filename)
+        
     def compute_correlations(self, vects_train_data):
         '''
         Computes the correlations between the values of the vectors and the notes of the reviews from the training set
@@ -147,6 +151,44 @@ class W2V():
             vects.append(vect_line)
         return vects
 
+    def compute_threshold(self):
+        '''
+        Compute the threshold above which a score is considered as significant 
+        '''
+        n = len(self.correlation_test_data)
+        self.means = [0 for i in range(self.vector_size)]
+        for line in self.correlation_test_data:
+            for i in range(self.vector_size):
+                self.means[i] += line[1][i]/n
+        mean_deviation = 0
+        for line in self.correlation_test_data:
+            score = 0
+            for i in range(self.vector_size): 
+                score += self.correlations[i] * (line[1][i]-self.means[i])
+            mean_deviation += abs(score)/n
+        self.threshold = self.threshold_factor*mean_deviation
+        
+    def predict(self,review):
+        '''
+        Returns 0 if the score of the review is too close to 0 (can not determine if positive or negative)
+        Returns -1 if negative and 1 if positive
+        '''
+        review = review.split()
+        vect = np.zeros(self.vector_size)
+        for token in review:
+            try:
+                vect += self.model[token]                    
+            except:
+                ()
+        norm = np.linalg.norm(vect)
+        if norm>0:
+            vect = vect/norm
+        score = 0
+        for i in range(self.vector_size): 
+            score += self.correlations[i] * (vect[i]-self.means[i])
+        if abs(score)<self.threshold:
+            return(0)
+        return(2*(score>0)-1)
   
     def get_efficiency(self, correlation_test_data):
         '''

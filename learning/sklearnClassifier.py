@@ -57,12 +57,10 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames[:5]:
+    for filename in filenames:
         print(os.path.join(folder, filename))
-
         with open(os.path.join(folder, filename), 'r') as f:
             for line in f:
-
                 line2 = line.strip().split('\t')
                 if len(line2) == 2:
                     listdata.append(line2)
@@ -81,9 +79,15 @@ def binariseLabels(Y):
 
 class MetaClassifier():
     def __init__(self, validation_rate=0.1, n_features=150):
+        """
+        Input:
+         - validation_rate: ratio of training data dedicated to validation.
+         - n_features: integer for n_features for SVD (/!\ : exponential complexity !!)
+        Output:
+         - None
+        """
 
         self.name = "sklearn_classifier"
-
 
         self.tfidf_vectorizer = None
         self.truncatedsvd = None
@@ -117,43 +121,23 @@ class MetaClassifier():
 
 
 
-    def train(self, training_set_folder, dataBalancing=False):
+    def train(self, X, Y):
         """
-        Input :
-         - training_set_folder: string of the path of the training_set_folder
-         - dataBalancing: boolean to balance data or not
-         - n_features: integer for n_features for SVD (/!\ : exponential complexity !!)
-        Output :
-         - model = 3 elements.
+        Based on X and Y, create a TFIDF matrix, then apply 
+        an SVD. Then train on all classifiers defined in
+        the constructor.
 
-        A partir d'un dossier composé de fichiers texte d'entrainement,
-        on entraine un certain modèle. On retourne ce modèle composé
-        de trois élements : CountVectorizer, TruncatedSVD et une instance
-        de MetaClassifier.
-        On a la possibilité d'équilibrer les données (avoir autant
-        de reviews positives que négatives) avec l'argument dataBalancing à True.
+        Input:
+         - X: A list of n sentences. A sentence is 
+                one string.
+         - Y: A list of n labels. Labels are in {0, 1}
+                (negative/positive)
+        Output: 
+         - None
         """
 
-        start_time = time.time()
 
-        print("\n== DATA RETRIEVAL ==")
-        data = getData(training_set_folder)#[:5000] #Pour ALLER PLUS VITE LORS DES TEST !!
-        print("{} lines of data".format(len(data)))
-
-        if dataBalancing:
-            data = balanceData(data)
-            print("{} lines of data kept after balancing".format(len(data)))
-
-
-        print("\n== TOKENISATION ==")
-        # Write labels in labels and X
-        labels, X = zip(*data)
-
-
-
-        Y = binariseLabels(labels)
-
-
+        print("Tokenisation...")
         #countvectorizer = CountVectorizer(ngram_range=(1,2))
         #X_token = countvectorizer.fit_transform(X)
 
@@ -166,27 +150,23 @@ class MetaClassifier():
         self.tfidf_vectorizer = tfidf_vectorizer
         self.truncatedsvd = truncatedsvd
 
-        print("Time spent for tokenisation: {:.3f}s".format(time.time() - start_time))
 
 
-        print("\n== TRAINING ==")
+        print("Training...")
         # Entrées :
             # X = numpy array (N_instances,N_features)
             # Y = numpy array (N_instances)
-        # Sorties :
-            # None
 
         # Séparation entraînement/validation
         #   La validation sert à mesurer les taux de succès de chaque algo pour
         #   donner plus de poids aux bons algos.
         limit = int((1 - self.validation_rate) * X.shape[0])
 
-        X_train, Y_train = X[:limit,:], Y[:limit] # ne sert qu'à l'entraînement
+        X_train, Y_train = X[:limit,:], Y[:limit] # ne sert qu'à l'entrainement
         X_val, Y_val = X[limit:,:], Y[limit:]  # validation, sert à calculer les performances
 
 
-        print("\nTemps d'entrainement")
-        print("  {} individus pour l'entrainement".format(len(X_train)))
+        print("Training: {} lines of data".format(len(X_train)))
         for clf_name in self.classifiers:
             start = time.time()
             clf = self.classifiers[clf_name]  # on sort l'objet Scikit-learn
@@ -201,95 +181,73 @@ class MetaClassifier():
 
             print("   {:20} --> {:.3f}s".format(clf_name, time.time()-start))  # on affiche la durée de calcul.
 
-        print("\nRésultat de la validation")
-        print("  {} individus pour la validation".format(len(X_val)))
+        print("Validation: {} lines of data".format(len(X_val)))
         if len(X_val) > 0:
             for clf_name in self.classifiers:
-                print("   {:20} --> {:.1f}%".format(clf_name, self.successes[clf_name]*100))
+                print("   {:20} --> {:.3f}".format(clf_name, self.successes[clf_name]))
 
 
-        print("Time spent for training: {:.3f}s".format(time.time() - start_time))
-
-        print("\n== TRAINING RESULTS ==")
-        print("DATA")
-        print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean(Y_train)))
-
-
-
-
-    def predict(self, X, Y=None):
+    def predict(self, X):
         """
-        Entrées :
-            X = list of sentences. A sentence is a sequence of words ([a-zA-Z]*) separated by a space.
-            Y = numpy array (N_instances) (optionnel) classes réelles
-                # Quand il est précisé, le taux de succès de chacun des sous_classifieurs s'affiche (print)
-        Sorties :
-            Y = numpy array (N_instances)
         Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
         La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
+        
+        Input:
+         - X: list of sentences. A sentence is a sequence of words ([a-zA-Z]*) separated by a space.
+        Output:
+         - Y_pred: numpy array (N_instances)
         """
-        print("\n== TOKENISATION ==")
+
+        print("Tokenisation...")
         X = self.tfidf_vectorizer.transform(X)
         X = self.truncatedsvd.transform(X) # numpy array (N_instances,N_features) carac d'entrée des données à prédire
 
-        probas = np.zeros((X.shape[0],))
-
-        print('\nTaux de succès')
+        print("Predicting...")
+        probas = np.zeros((X.shape[0], ))
         for name in self.classifiers:
-            clf = self.classifiers[name]
+            probas += self.classifiers[name].predict(X) * np.exp(self.successes[name])
+            pred_class = [1 if proba > 0.5 else 0 for proba in probas]
 
-            probas += clf.predict(X) * np.exp(self.successes[name])
+        probas /= sum([np.exp(self.successes[name]) for name in self.successes ])
+        Y_pred = np.array([1 if proba > 0.5 else 0 for proba in probas])
 
-            if type(Y) != type(None) :  # Y == None renvoie un array si Y est un array
-                pred_class = [1 if proba > 0.5 else 0 for proba in probas]
-                #Success_tab = [1 if  pred_class[i] == Y[i] else 0 for i in range(len(Y))]
-                #SuccessRate = np.mean(Success_tab)
-                SuccessRate = np.mean(pred_class == Y)
+        return Y_pred
 
-                print("   {:20} --> {:.1f}%".format(name, SuccessRate*100))
+
+
+    def test(self, X, Y):
+        """
+        Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
+        La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
+        
+        Input:
+         - X: list of sentences. A sentence is a sequence of words ([a-zA-Z]*) separated by a space.
+         - Y: numpy array (N_instances) (optionnel) classes réelles
+                # Quand il est précisé, le taux de succès de chacun des sous_classifieurs s'affiche (print)
+        Output:
+         - Y_pred: numpy array (N_instances)
+         - success_rate: self explanatory.
+        """
+        
+        print("Tokenisation...")
+        X = self.tfidf_vectorizer.transform(X)
+        X = self.truncatedsvd.transform(X) # numpy array (N_instances,N_features) carac d'entrée des données à prédire
+
+        probas = np.zeros((X.shape[0], ))
+
+        print('\nSuccess rate per classifier:')
+        for name in self.classifiers:
+            probas += self.classifiers[name].predict(X) * np.exp(self.successes[name])
+            pred_class = [1 if proba > 0.5 else 0 for proba in probas]
+            print("   {:20} --> {:.3f}".format(name, np.mean(np.array(pred_class) == np.array(Y))))
+
         probas /= sum([np.exp(self.successes[name]) for name in self.successes ])
 
-        classes = np.array([1 if proba > 0.5 else 0 for proba in probas])
-        
-        if type(Y) != type(None) :
-            success_rate = np.mean(np.array(Y) == classes)
-        else:
-            success_rate = "unknown without the labels"
+        Y_pred = np.array([1 if proba > 0.5 else 0 for proba in probas])
+        success_rate = np.mean(Y_pred == np.array(Y))
 
-        return classes, success_rate, len(classes)
+        return Y_pred, success_rate
 
-
-
-    def showResults(self, testing_set_folder):
-        """
-        Reprend un ancien modèle composé des trois élements et
-        l'utilise pour la prédiction sur l'ensemble des fichiers
-        du testing_set_folder.
-        """
-
-        print("\n== DATA RETRIEVAL ==")
-        data = getData(testing_set_folder)
-        print("{} lines of data".format(len(data)))
-
-        # Write labels in labels and X_token
-        labels, X = zip(*data)
-
-        Y = binariseLabels(labels)
-        
-        Y_pred, success_rate, n = self.predict(X, Y=Y)
-        
-
-
-
-        index_sample = sample(range(len(Y)), k=10)
-
-        print("\n== TEST RESULTS ==")
-        print("  Exemples de prédictions : {}".format([Y_pred[i] for i in index_sample]))
-        print("  Classes réelles :         {}".format([Y[i] for i in index_sample]))
-        print("  nombre de prédictions : {}".format(n))
-        print("  Taux de revues avec 4,5 étoiles (données réelles) : {:.3f}".format(np.mean([Y])))
-        print("  Taux de revues avec 4,5 étoiles (selon la prédiction) : {:.3f}".format(np.mean(Y_pred)))
-        print("  Taux de succès : ................................................. {:.3f}".format(success_rate))
 
 
 if __name__ == "__main__":
@@ -301,28 +259,20 @@ if __name__ == "__main__":
     print("========================")
     print("|        TRAIN         |")
     print("========================")
-    model = MetaClassifier(validation_rate=0.1, n_features=150)
-    model.train(TRAINING_SET_FOLDER_1, dataBalancing=False)
+    data = getData(TRAINING_SET_FOLDER_1)[:1500]
+    data = balanceData(data)
+    labels, X = zip(*data)
+    Y = binariseLabels(labels)    
 
+    model = MetaClassifier(validation_rate=0.1, n_features=150)
+    model.train(X, Y)
 
     print("========================")
     print("|        TEST          |")
     print("========================")
-    model.showResults(TESTING_SET_FOLDER_1)
-
-
-"""
-TP = len([i for i in range(len(Y_pred)) if Y_pred[i] == 1 and Y_test[i] == 0])
-TN = len([i for i in range(len(Y_pred)) if Y_pred[i] == -1 and Y_test[i] == 1])
-FP = len([i for i in range(len(Y_pred)) if Y_pred[i] == 1 and Y_test[i] == 1])
-FN = len([i for i in range(len(Y_pred)) if Y_pred[i] == -1 and Y_test[i] == 0])
-
-
-print('')
-print('Confusion matrix :')
-print()
-print(" \t\t Actual class")
-print(" \t\t Good \t Bad")
-print("Predicted Good \t {} \t {}".format(TP,FN))
-print("          Bad \t {} \t {}".format(FP,TN))
-"""
+    data = getData(TESTING_SET_FOLDER_1)[:500]
+    labels, X = zip(*data)
+    Y = binariseLabels(labels)
+    
+    Y_pred, success_rate = model.test(X, Y)
+    print(Y_pred, success_rate)

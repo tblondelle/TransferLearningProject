@@ -1,26 +1,29 @@
 from data.scripts import convertJsonToText, cleanData, createDatasets
-from learning import sklearnClassifier
-from learning import word2vecClassifier
+from learning import sklearnClassifier, word2vecClassifier
+from random import sample, seed
+import numpy as np
+import sklearn.metrics as skm
 
+seed(8080)
 
 # Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
 ORIGIN_FOLDER_1 = "../data/data_books"
-ORIGIN_FOLDER_2 = "../data/data_video" # eg (we will learn video data from books)
+ORIGIN_FOLDER_2 = "../data/data_videos" # eg (we will learn video data from books)
 
 # In this folder are files such that : 
 # - every line is of the form "[original ratings]\t[original review]"
-STRIPPED_METADATA_FOLDER_1 = "data/data_books_stripped"
-STRIPPED_METADATA_FOLDER_2 = "data/data_videos_stripped"
+STRIPPED_METADATA_FOLDER_1 = ORIGIN_FOLDER_1 + "_stripped"
+STRIPPED_METADATA_FOLDER_2 = ORIGIN_FOLDER_2 + "_stripped"
 
 # In this folder are files such that : 
 # - every line is of the form "[new ratings]\t[list of relevant words]" with [new ratings] in {"Negative", "Neutral", "Positive"}
-CLEANED_DATA_FOLDER_1 = "../data/data_books_cleaned"
-CLEANED_DATA_FOLDER_2 = "../data/data_videos_cleaned"
+CLEANED_DATA_FOLDER_1 = ORIGIN_FOLDER_1 + "_cleaned"
+CLEANED_DATA_FOLDER_2 = ORIGIN_FOLDER_2 + "_cleaned"
 
-TRAINING_SET_FOLDER_1 = "../data/data_books_training_set"
-TESTING_SET_FOLDER_1 = "../data/data_books_testing_set"
-TRAINING_SET_FOLDER_2 = "../data/data_videos_training_set"
-TESTING_SET_FOLDER_2 = "../data/data_videos_testing_set"
+TRAINING_SET_FOLDER_1 = ORIGIN_FOLDER_1 + "_training_set"
+TESTING_SET_FOLDER_1 = ORIGIN_FOLDER_1 + "_testing_set"
+TRAINING_SET_FOLDER_2 = ORIGIN_FOLDER_2 + "_training_set"
+TESTING_SET_FOLDER_2 = ORIGIN_FOLDER_2 + "_testing_set"
 
 
 
@@ -48,43 +51,90 @@ def createTrainingSetAndTestSet(source_folder, target_training_set_folder, targe
 
 
 
-def createModelsAndlearn(training_set_folder):
-    print("========================")
-    print("|        TRAIN         |")
-    print("========================")
+def createModelsAndLearn(training_set_folder):
+
+    print("\n##\n## Retrieving training data\n##")
+    data = sklearnClassifier.getData(training_set_folder)[:5000]
+    data = sklearnClassifier.balanceData(data)
+    print("{} lines of data".format(len(data)))
+    labels, X = zip(*data)
+    Y = sklearnClassifier.binariseLabels(labels)    
+    print("Ratio of positive reviews: {:.3f}".format(np.mean(Y)))
+
+
+    models = []
 
     # Create the models and make them learn.
+    print("\n##\n## MetaClassifier Sklearn\n##")
     sklearn_classifier = sklearnClassifier.MetaClassifier(validation_rate=0.1, n_features=150)
-    sklearn_classifier.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
+    sklearn_classifier.train(X, Y)
+    models.append(sklearn_classifier)
 
+    print("\n##\n## Word2Vec Classifier\n##")
     word2vec_classifier = word2vecClassifier.W2V(20,5)
-    word2vec_classifier.train(TRAINING_SET_FOLDER_1, dataBalancing=True)
-
-    return [sklearn_classifier, word2vec_classifier]
+    word2vec_classifier.train(X, Y)
+    models.append(word2vec_classifier)
+    
+    return models
 
 
 def transferLearn(old_models, training_set_folder):
+
+    print("\n##\n## Retrieving training data\n##")
+    data = sklearnClassifier.getData(training_set_folder)[:5000]
+    data = sklearnClassifier.balanceData(data)
+    print("{} lines of data".format(len(data)))
+    labels, X = zip(*data)
+    Y = sklearnClassifier.binariseLabels(labels)    
+    print("Ratio of positive reviews: {:.3f}".format(np.mean(Y)))
+
+
+
     new_models = []
 
     for old_model in old_models:
         if old_model.name == "sklearn_classifier":
+            print("\n##\n## Adding old sklearn_classifier...\n##")
             new_models.append(old_model)
-        if old_model.name == "word2vec_classifier":
-            old_model.train(training_set_folder, dataBalancing=True)
+        elif old_model.name == "word2vec_classifier":
+            print("\n##\n## Training old word2vec_classifier...\n##")
+            old_model.train(X, Y)
             new_models.append(old_model)
 
     return new_models
 
 
 
-def showResults(models, testing_set_folder):
-    print("========================")
-    print("|        TEST          |")
-    print("========================")
+def testModels(models, testing_set_folder):
 
+    def getSampleResults(y_pred, y_true):
+        index_sample = sample(range(len(y_true)), k=10)
+        return [int(Y_pred[i]) for i in index_sample], [int(Y[i]) for i in index_sample]
+
+
+    print("\n##\n## Retrieving testing data\n##")
+    data = sklearnClassifier.getData(testing_set_folder)
+    print("{} lines of data".format(len(data)))
+    labels, X = zip(*data)
+    Y = sklearnClassifier.binariseLabels(labels)
+
+
+    
     for model in models:
-        print("\n\n" + model.name)
-        model.showResults(testing_set_folder)
+        print("\n##\n## Testing {}\n##".format(model.name))
+        Y_pred, success_rate = model.test(X, Y)
+
+        sample_pred, sample_true = getSampleResults(Y_pred, Y)
+
+        print("Number of predictions : {}".format(len(Y_pred)))
+        print("Predictions sample:        {}".format(sample_pred))
+        print("True classes of sample:    {}".format(sample_true))
+        print("Ratio of positive reviews (test data):   {:.3f}".format(np.mean([Y])))
+        print("Ratio of positive reviews (predictions): {:.3f}".format(np.mean(Y_pred)))
+        print("Precision score: {:.3f}".format(skm.precision_score(Y, Y_pred))) # tp / (tp + fp)
+        print("Recall score: {:.3f}".format(skm.recall_score(Y, Y_pred))) # tp / (tp + fn)
+        print("Accuracy score : ................................................. {:.3f}".format(success_rate))
+
 
 
 def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2, 
@@ -112,8 +162,8 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("################################")
     #createTrainingSetAndTestSet(cleaned_data_folder_1, training_set_folder_1, testing_set_folder_1)
     
-    model1 = createModelsAndlearn(training_set_folder_1)
-    showResults(model1, testing_set_folder_1)
+    model1 = createModelsAndLearn(training_set_folder_1)
+    testModels(model1, testing_set_folder_1)
 
     
 
@@ -122,13 +172,10 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("##  TRANSFER LEARNING (1->2)  ##")
     print("##                            ##")
     print("################################")
-    createTrainingSetAndTestSet(cleaned_data_folder_2, training_set_folder_2, testing_set_folder_2)
+    #createTrainingSetAndTestSet(cleaned_data_folder_2, training_set_folder_2, testing_set_folder_2)
     model2 = transferLearn(model1, training_set_folder_2) # <---- Difference here!!
-    showResults(model2, testing_set_folder_2)
+    testModels(model2, testing_set_folder_2)
 
 
 if __name__ == "__main__":
     main()
-    
-
-

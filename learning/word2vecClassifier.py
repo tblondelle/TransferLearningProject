@@ -46,7 +46,7 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames[:5]:
+    for filename in filenames:
         print(os.path.join(folder, filename))
 
         with open(os.path.join(folder, filename), 'r') as f:
@@ -97,19 +97,27 @@ class W2V():
         self.threshold_factor = threshold_factor
         self.std_vector = np.zeros(vector_size)
     
-    def train(self, X, Y, save_filename="save_filename"):
+    def train(self, X, Y):
         '''
-        Train the Word2Vec model and save it in the file save_filename, 
-        the model can be loaded later with the load_model method.
-        '''
+        Based on X and Y, create a HashTable of Word2Vec and 
+        evaluate a correlation vector, used later for
+        prediction.
 
+        Input:
+         - X: A list of n sentences. A sentence is 
+                one string.
+         - Y: A list of n labels. Labels are in {0, 1}
+                (negative/positive)
+        Output: 
+         - None
+        '''
 
         # Add to the model the data as a list of [label, sentence].
         # If train is run multiple times, old data is not lost.
         self.training_data += list(zip(Y, X))
         
-
         # Run the word2vec model on the data only (no label)
+        print("Run gensim word2vec model...")
         labels, train_data = zip(*self.training_data)
         self.model = Word2Vec(sentences=[sentence.split() for sentence in list(train_data)],
             size=self.vector_size, 
@@ -120,14 +128,24 @@ class W2V():
             workers=multiprocessing.cpu_count())
         
         # Store the global standart error vector of the model.
-        vects = self.sentencesToVects(train_data)
-        self.std_vector = self.setCorrelation(labels, vects)
+        print("Convert sentences to vectors...")
+        vects = self._sentencesToVects(train_data)
+        print("Find the global standart deviation vector...")
+        self.std_vector = self._setSTDVector(labels, vects)
 
         
-    def setCorrelation(self, labels, vects):
+    def _setSTDVector(self, labels, vects):
         '''
         Computes the correlation between the values of the vectors and 
-        the notes of the reviews from the training set
+        the notes of the reviews from the training set.
+
+        Input:
+        - labels: A list of size n of labels. Labels are in {0, 1}
+                (negative/positive)
+         - vects: A numpy array of shape (n, vector_size). Each vector 
+                represents a review.
+        Output: 
+         - None
         '''
 
         mean_vector = np.zeros(self.vector_size)
@@ -146,7 +164,7 @@ class W2V():
 
         return std_vector
 
-    def sentencesToVects(self, X):
+    def _sentencesToVects(self, X):
         '''
         Transforms the tokenized text from the train and test 
         datasets into vectors using the Word2Vec model 
@@ -171,7 +189,7 @@ class W2V():
 
         return vects
 
-    def compute_threshold(self):
+    def _compute_threshold(self):
         '''
         Compute the threshold above which a score is considered as significant 
         '''
@@ -190,13 +208,21 @@ class W2V():
         
 
     def predict(self, X):
-        '''
-        Returns 0 if the score of the review is too close to 0 (can not determine if positive or negative)
-        Returns -1 if negative and 1 if positive
-        '''
+        """
+        Predict the class positive or negative for the sentences.
 
-        X = model.sentencesToVects(X)
+        Input:
+         - X: A list of n sentences.
 
+        Output: 
+         - Y_pred: The numpy array of predictions. 1 if positive, else 0.
+        """
+
+        # Convert the sentences into vectors
+        X = model._sentencesToVects(X)
+
+        # Evaluate the scalar product of the std vector of the review
+        # and the reference.
         n = len(X)
         mean_vector = np.mean(X)
 
@@ -208,17 +234,30 @@ class W2V():
             elif score < -self.threshold:
                 Y_pred[i] = 0
 
+            # Unused now.
             if abs(score)<self.threshold:
                 n_ignored += 1
                 Y_pred[i] = -1
 
-        return Y_pred, n
+        return Y_pred
 
 
-    def test(self, Y, X):
+    def test(self, X, Y):
+        """
+        Predict the class positive or negative for the sentences and 
+        determine the succcess rate of the model.
+
+        Input:
+         - X: A list of n sentences.
+         - Y: A list of n labels.
+
+        Output: 
+         - Y_pred: The numpy array of predictions. 1 if positive, else 0.
+         - success_rate: Number between 0 and 1.
+        """
 
 
-        X = model.sentencesToVects(X)
+        X = self._sentencesToVects(X)
 
         n = len(Y)
         mean_vector = np.mean(X)
@@ -238,7 +277,7 @@ class W2V():
 
         success_rate = np.mean(Y_pred == np.array(Y))
 
-        return Y_pred, success_rate, n
+        return Y_pred, success_rate
 
 
 
@@ -255,9 +294,8 @@ if __name__ == "__main__":
     print("========================")
     # On fournit les labels Y sous forme binaire (0 ou 1)
     # et les données X sous forme de liste de phrases.
-    data = getData(TRAINING_SET_FOLDER_1)[:100]
+    data = getData(TRAINING_SET_FOLDER_1)[:1000]
     data = balanceData(data)
-
     labels, X = zip(*data)
     Y = binariseLabels(labels)    
 
@@ -269,15 +307,10 @@ if __name__ == "__main__":
     print("========================")
     print("|        TEST          |")
     print("========================")
-
-
-    data = getData(TESTING_SET_FOLDER_1)[:60]
+    data = getData(TESTING_SET_FOLDER_1)[:600]
     labels, X = zip(*data)
     Y = binariseLabels(labels)
 
-
-
-    preds, success_rate, n_treated = model.test(Y, X) 
+    preds, success_rate = model.test(X, Y) 
     print(preds)
     print(success_rate)
-    print(n_treated)

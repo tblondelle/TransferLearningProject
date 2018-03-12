@@ -44,9 +44,9 @@ def timeSince(since, percent):
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
 
-class my_RNN(nn.Module):
+class my_MLP(nn.Module):
     def __init__(self, input_size, hidden_size,batch_size, n_layers=1):
-        super(my_RNN, self).__init__()
+        super(my_MLP, self).__init__()
         self.n_layers = n_layers
         self.hidden_size = hidden_size
         self.batch_size = batch_size
@@ -56,6 +56,9 @@ class my_RNN(nn.Module):
         self.linear1 = nn.Linear(input_size,hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.linear3 = nn.Linear(hidden_size, 1)
+
+        # le réseaux linéaires sert à ce que la sortie ait la bonne taille
+
 
 
     def forward(self, input):
@@ -80,8 +83,9 @@ class my_RNN(nn.Module):
         #   - optimizer (pytorch object) : le résultat de optim.SGD ou optim.Adam
         #   - criterion (pytorch object) : le résultat de nn.L1Loss ou nn.MSELoss
         # Sorties :
-        #   perte (float) : la valeur de la perte globale
+        #   none
         optimizer.zero_grad()
+        input_length = input_variable.size()[0]
 
         output= self(input_variable)
 
@@ -94,14 +98,13 @@ class my_RNN(nn.Module):
 
 
 
-    def trainIters(self, n_epochs, training_pairs, te_pairs, learning_rate, batch_size,  print_every=1000, eval_every = 1000):
+    def trainIters(self, n_epochs, training_pairs, te_pairs, learning_rate,  print_every=1000, eval_every = 1000):
         # Réalise l'entraînement complet, à partir des ensembles d'apprentissage
         # Entrées :
         #   - n_epochs (int) : nombre de fois qu'on applique toutes les instance de l'ensemble d'apprentissage
-        #   - training_pairs (list of (vect), (+1|-1))) : instances d'apprentissage
+        #   - training_pairs (Variable(mat), Variable(vect(+1|-1))) ) : instances d'apprentissage
         #   - te_pairs (list of (Variable(vect), Variable(+1|-1))) : instances de test
         #   - learning_rate (float) : devine ;)
-        #   - batch_size (int) : le nombre d'instances dans chaque batch
         #   - print_every (int) : imprime l'erreur moyenne toutes les print_every epochs
         #   - eval_every (int) : teste le NN sur la base de test et imprime la matrice de confusion
         # Sorties :
@@ -111,9 +114,9 @@ class my_RNN(nn.Module):
         plot_losses = []
         print_loss_total = 0  # Reset every print_every
 
-        optimizer = optim.SGD(self.parameters(), lr=learning_rate)
+        #optimizer = optim.SGD(self.parameters(), lr=learning_rate)
         # Autre choix possible :
-        #optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
 
         criterion = nn.L1Loss()
@@ -121,35 +124,20 @@ class my_RNN(nn.Module):
 
         for epoch in range(1, n_epochs + 1):
 
-            list_inst = [] # la liste des indices des instances de ce batch
-            for instance in range(len(training_pairs)):
-                list_inst.append(instance)
+            input_variable = training_pairs[0]
+            target_variable = training_pairs[1]
 
-
-                if instance % batch_size == 0:
-                    input_variable =  [training_pairs[i][1] for i in list_inst]
-                    input_variable = torch.autograd.Variable(torch.Tensor(input_variable))
-
-                    target_variable = [training_pairs[i][0] for i in list_inst]
-                    target_variable = Variable(torch.FloatTensor(target_variable))
-
-                    loss = self.train_once(input_variable, target_variable,  optimizer, criterion)
-                    print_loss_total += loss
-
-                    list_inst = [] # reset
-
-
-
+            loss = self.train_once(input_variable, target_variable,  optimizer, criterion)
+            print_loss_total += loss
 
             if epoch % print_every == 0:
-                # print the loss and time
                 print_loss_avg = print_loss_total / print_every
                 print_loss_total = 0
                 print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
                                              epoch, epoch / n_epochs * 100, print_loss_avg))
 
             if epoch % eval_every == 0:
-                self.evaluateRandomly(te_pairs) # show confusion matrix on test data
+                self.evaluateRandomly(te_pairs) # show global results
 
 
 
@@ -208,7 +196,7 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames[:1]:  # change here
+    for filename in filenames: #[:1]:  # change here
 
         with open(os.path.join(folder, filename), 'r') as f:
             for line in f:
@@ -221,14 +209,14 @@ def getData(folder):
 
 def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_features):
     # Entrées :
-    #   - train_filename (str) : le nom du **dossier** (et non pas le nom du fichier) où se trouvent les instances d'apprentissage
-    #   - test_filename (str) : le nom du **dossier** (et non pas le nom du fichier) où se trouvent les instances de test
+    #   - train_filename (str) : le nom du **dossier** (et pas le nom du fichier) où se trouvent les instances d'apprentissage
+    #   - test_filename (str) : le nom du **dossier** (et pas le nom du fichier) où se trouvent les instances de test
     #   - balanced_tr (bool) : True si l'ensemble d'apprentissage est équilibré; False s'il est laissé tel quel
     #   - balanced_te (bool) : True si l'ensemble de test est équilibré; False s'il est laissé tel quel
     #   - n_features (int) : nombre de variables pour coder chaque instance
     # Sorties :
     #   - cuple (new_tr_pairs, new_te_pairs):
-    #       new_tr_pairs :  (list of (vect), (+1|-1)))
+    #       new_tr_pairs :  (Variable(mat), Variable(vect(+1|-1))) )
     #       new_te_pairs : (list of (Variable(vect), Variable(+1|-1)))
 
     tr_te_pairs = {}
@@ -242,7 +230,7 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
         #Pour un équilibrage 75/25
         pairs_using_numbers = [(-1,text)  for (target,text) in pairs  if (target == 'Negative' or target == 'Neutral')]
         Positive_reviews =  [(1,text) for (target,text) in pairs if target == 'Positive']
-        pairs_using_numbers += Positive_reviews[:int(len(pairs_using_numbers)*3)] # différence ici
+        pairs_using_numbers += Positive_reviews[:int(len(pairs_using_numbers)*3)]
         tr_pairs = pairs_using_numbers
         """
         #Pour un équilibrage 50/50
@@ -290,12 +278,9 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
     X_tr_reduced_dim = truncatedsvd.transform(X_tr_token)
     X_te_reduced_dim = truncatedsvd.transform(X_te_token)
 
-    new_tr_pairs = []
-    for i in range(len(tr_pairs)):
-        (note,_) = tr_pairs[i]
+    print('part de la variance conservée :',sum(truncatedsvd.explained_variance_ratio_))
 
-        vect = X_tr_reduced_dim[i,:]
-        new_tr_pairs.append((note,vect))
+    new_tr_pairs = [Variable(torch.FloatTensor(X_tr_reduced_dim)),Variable(torch.FloatTensor([[note for (note,_) in tr_pairs]]))]
 
 
     new_te_pairs = []
@@ -329,26 +314,25 @@ test_set_folder = "../../data/data_books_testing_set"
 
 
 
-n_features=10
+n_features = 1000
 tr_pairs,te_pairs = folder2data(training_set_folder,test_set_folder,balanced_tr = True,balanced_te = True,n_features=n_features)
 
-hidden_size = 5
-batch_size = 256
+hidden_size = 500
+batch_size = tr_pairs[0].data.size()[0]
 
-RNN = my_RNN(n_features, hidden_size, batch_size, n_layers = 1)
-#RNN.evaluateNpairs(te_pairs,1) # show some examples
+MLP = my_MLP(n_features, hidden_size, batch_size, n_layers = 1)
+#MLP.evaluateNpairs(te_pairs,1) # show some examples
 
 
 lr = 0.005
-N_epochs = 3
+N_epochs = 20000
 print("learning rate",lr)
-print("batch_size",batch_size)
-RNN.trainIters( N_epochs, tr_pairs, te_pairs, lr, batch_size, 500,5000)
+print(batch_size,'instances')
+MLP.trainIters( N_epochs,tr_pairs,te_pairs,lr,500,5000)
 
+MLP.evaluateRandomly(te_pairs) # show global results
 
-RNN.evaluateRandomly(te_pairs) # show global results
-
-torch.save(RNN,'MLP')
+torch.save(MLP,'MLP')
 #cours ; cd 2eme_partie_S9/Transfer_learning/TransferLearningProject/learning/ ; python MLP_base.py
 
 

@@ -10,7 +10,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import BaggingClassifier, AdaBoostClassifier, RandomForestClassifier
 
-from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -138,9 +137,6 @@ class MetaClassifier():
 
 
         print("Tokenisation...")
-        #countvectorizer = CountVectorizer(ngram_range=(1,2))
-        #X_token = countvectorizer.fit_transform(X)
-
         tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
         X_token = tfidf_vectorizer.fit_transform(X)
 
@@ -238,9 +234,6 @@ class MetaClassifier():
         print('\nSuccess rate per classifier:')
         for name in self.classifiers:
             probas += self.classifiers[name].predict(X) * np.exp(self.successes[name])
-            pred_class = [1 if proba > 0.5 else 0 for proba in probas]
-            print("   {:20} --> {:.3f}".format(name, np.mean(np.array(pred_class) == np.array(Y))))
-
         probas /= sum([np.exp(self.successes[name]) for name in self.successes ])
 
         Y_pred = np.array([1 if proba > 0.5 else 0 for proba in probas])
@@ -259,7 +252,7 @@ if __name__ == "__main__":
     print("========================")
     print("|        TRAIN         |")
     print("========================")
-    data = getData(TRAINING_SET_FOLDER_1)[:1500]
+    data = getData(TRAINING_SET_FOLDER_1)[:10000]
     data = balanceData(data)
     labels, X = zip(*data)
     Y = binariseLabels(labels)    
@@ -270,7 +263,7 @@ if __name__ == "__main__":
     print("========================")
     print("|        TEST          |")
     print("========================")
-    data = getData(TESTING_SET_FOLDER_1)[:500]
+    data = getData(TESTING_SET_FOLDER_1)[:100]
     labels, X = zip(*data)
     Y = binariseLabels(labels)
     

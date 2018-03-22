@@ -9,13 +9,11 @@ def createDataset(source_location, target_training_set_folder, target_testing_se
 
     list_files = os.listdir(source_location)
     
-    index_train_start = 0
-    index_train_stop = int(len(list_files) *  PROPORTION_TRAIN) - 1
-    index_test_start = index_train_stop + 1
-    index_test_stop = len(list_files)
-   
- 
-    for filename in list_files[index_train_start : index_train_stop]:
+    all_lines = []
+    
+    for filename in list_files:
+        
+        # Crée le dossier de destination s'il n'existe pas.
         try:
             os.makedirs(os.path.dirname(target_training_set_folder + '/' + filename))
             os.makedirs(os.path.dirname(source_location + '/' + filename))
@@ -24,23 +22,20 @@ def createDataset(source_location, target_training_set_folder, target_testing_se
                     
         with open(source_location + '/' + filename, 'r') as f:
             with open(target_training_set_folder + '/' + filename, 'w') as g:  
-                g.write(f.read())
-            
-    for filename in list_files[index_test_start : index_test_stop]:
-        try:
-            os.makedirs(os.path.dirname(target_testing_set_folder + '/' + filename))
-            os.makedirs(os.path.dirname(source_location + '/' + filename))
-        except OSError as exc:
-            ()
-            
-        with open(source_location + '/' + filename, 'r') as f:
-            with open(target_testing_set_folder + '/' + filename, 'w') as g:
-                g.write(f.read())
-          
-    files_written_for_train = index_train_stop - index_train_start
-    files_written_for_test = index_test_stop - index_test_start  
-    return (files_written_for_train, files_written_for_test)
+                all_lines.append(f.read())
+    
+
+    index_sep = int(len(all_lines)*PROPORTION_TRAIN)
+    
+    with open(target_training_set_folder + '/' + source_location, 'w') as g:
+        g.write(all_lines[:index_sep])
+        
+    with open(target_testing_set_folder + '/' + source_location, 'w') as g:
+        g.write(all_lines[index_sep:])
+    
+    
+    return (len(all_lines[:index_sep]), len(all_lines[index_sep:]))
             
 
 if __name__ == "__main__":
-    createDataset("../../../data/data_books_cleaned", "../../../data/data_books_training_set", "../../../data/data_books_testing_set")
+    createDataset("../../../data/data_tools_cleaned", "../../../data/data_tools_training_set", "../../../data/data_tools_testing_set")

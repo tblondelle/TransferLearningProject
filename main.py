@@ -7,7 +7,7 @@ import sklearn.metrics as skm
 seed(8080)
 
 # Origin datafile downloaded from jmcauley.ucsd.edu/data/amazon/ in ORIGIN_FOLDER_1
-ORIGIN_FOLDER_1 = "../data/data_books"
+ORIGIN_FOLDER_1 = "../data_books"
 ORIGIN_FOLDER_2 = "../data/data_videos" # eg (we will learn video data from books)
 
 # In this folder are files such that : 
@@ -149,7 +149,7 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("##                            ##")
     print("################################")
     #stripMetadata(origin_folder_1, stripped_metatdata_folder_1)
-    #simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_1, cleaned_data_folder_1)
+    simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_1, cleaned_data_folder_1)
 
     #stripMetadata(origin_folder_2, stripped_metatdata_folder_2)
     #simplifyRatingAndKeepRelevantWords(stripped_metatdata_folder_2, cleaned_data_folder_2)
@@ -162,8 +162,8 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("################################")
     #createTrainingSetAndTestSet(cleaned_data_folder_1, training_set_folder_1, testing_set_folder_1)
     
-    model1 = createModelsAndLearn(training_set_folder_1)
-    testModels(model1, testing_set_folder_1)
+    #model1 = createModelsAndLearn(training_set_folder_1)
+    #testModels(model1, testing_set_folder_1)
 
     
 
@@ -173,8 +173,8 @@ def main(origin_folder_1=ORIGIN_FOLDER_1, origin_folder_2=ORIGIN_FOLDER_2,
     print("##                            ##")
     print("################################")
     #createTrainingSetAndTestSet(cleaned_data_folder_2, training_set_folder_2, testing_set_folder_2)
-    model2 = transferLearn(model1, training_set_folder_2) # <---- Difference here!!
-    testModels(model2, testing_set_folder_2)
+    #model2 = transferLearn(model1, training_set_folder_2) # <---- Difference here!!
+    #testModels(model2, testing_set_folder_2)
 
 
 if __name__ == "__main__":

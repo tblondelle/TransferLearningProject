@@ -6,6 +6,7 @@ PROPORTION_TRAIN = 0.9 # in ]0, 1[
 
 
 def createDataset(source_location, target_training_set_folder, target_testing_set_folder):
+
     list_files = os.listdir(source_location)
     
     index_train_start = 0

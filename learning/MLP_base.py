@@ -314,10 +314,10 @@ test_set_folder = "../../data/data_books_testing_set"
 
 
 
-n_features = 1000
+n_features = 500
 tr_pairs,te_pairs = folder2data(training_set_folder,test_set_folder,balanced_tr = True,balanced_te = True,n_features=n_features)
 
-hidden_size = 500
+hidden_size = 250
 batch_size = tr_pairs[0].data.size()[0]
 
 MLP = my_MLP(n_features, hidden_size, batch_size, n_layers = 1)

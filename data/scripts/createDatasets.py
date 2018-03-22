@@ -27,10 +27,10 @@ def createDataset(source_location, target_training_set_folder, target_testing_se
 
     index_sep = int(len(all_lines)*PROPORTION_TRAIN)
     
-    with open(target_training_set_folder + '/' + source_location, 'w') as g:
+    with open(target_training_set_folder + '/train' , 'w') as g:
         g.write(all_lines[:index_sep])
         
-    with open(target_testing_set_folder + '/' + source_location, 'w') as g:
+    with open(target_testing_set_folder + '/test', 'w') as g:
         g.write(all_lines[index_sep:])
     
     

@@ -72,30 +72,6 @@ class my_RNN(nn.Module):
         return output,hidden
 
 
-    def forward_sentence(sentence):
-        vect_list = []
-
-        for word in sentence:
-            try : # si le mot est connu, on le transforme en vecteur
-                vect_list.append(self.model[word])
-            except : # sinon, on le remplace par le vecteur (0,0,0, ... ,0)
-                vect_list.append(np.zeros((self.input_size,)))
-
-        input_variables = [Variable(torch.FloatTensor(Vect)).view(1,-1) for Vect in vect_list]
-
-        target_variable = Variable(torch.FloatTensor(np.array([pair[0]])))
-
-        output_list, hidden_list = [],[]
-        hidden = self.initHidden()
-
-        for word in input_variables :
-            output,hidden = self(word,hidden)
-            output_list.append(output)
-            hidden_list.append(hidden)
-
-        output = torch.tanh(self.linear_out(output))
-
-        return output,output_list,hiden_list
 
 
     def initHidden(self):
@@ -119,10 +95,11 @@ class my_RNN(nn.Module):
         #   - criterion (pytorch object) : le résultat de nn.L1Loss ou nn.MSELoss
         # Sorties :
         #   perte (float) : la valeur de la perte globale
-        optimizer.zero_grad()
 
         output_list, hidden_list = [],[]
         hidden = self.initHidden()
+
+        optimizer.zero_grad()
 
         for word in input_variables :
 
@@ -131,12 +108,11 @@ class my_RNN(nn.Module):
             output_list.append(output)
             hidden_list.append(hidden)
 
-
         output = torch.tanh(self.linear_out(output))
 
         loss = criterion(output.view(1,-1), target_variable.view(-1))
-        loss.backward()
 
+        loss.backward()
         optimizer.step()
 
         return loss.data[0], output_list, hidden_list
@@ -168,6 +144,7 @@ class my_RNN(nn.Module):
         #criterion = nn.MSELoss()
 
         for epoch in range(1, n_epochs + 1):
+            loss = 0
 
             for instance in range(len(training_pairs)):
                 vect_list = []
@@ -184,6 +161,7 @@ class my_RNN(nn.Module):
                 target_variable = Variable(torch.FloatTensor(np.array([target_variable])))
 
                 loss,_,_ = self.train_once(input_list, target_variable,  optimizer, criterion)
+
                 print_loss_total += loss
 
 
@@ -281,7 +259,7 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames[:1]:  # change here
+    for filename in filenames: #[:1]:  # change here
 
         with open(os.path.join(folder, filename), 'r') as f:
             for line in f:
@@ -419,6 +397,7 @@ test_set_folder = "../../data/data_books_testing_set"
 n_features=50
 tr_pairs,te_pairs = folder2data(training_set_folder,test_set_folder,balanced_tr=True, balanced_te=True, n_features=n_features)
 
+
 print("instances d'entraînement",len(tr_pairs))
 print("instances de test",len(te_pairs))
 
@@ -440,7 +419,7 @@ RNN = my_RNN(n_features, hidden_size, model=W2Vmodel , n_layers = 1)
 
 
 lr = 0.005
-N_epochs = 25
+N_epochs = 2
 print("learning rate",lr)
 RNN.trainIters(N_epochs, tr_pairs, te_pairs, lr, 1,5000)
 
@@ -450,7 +429,10 @@ RNN.evaluateRandomly(te_pairs) # show global results
 torch.save(RNN,'RNN')
 #cours ; cd 2eme_partie_S9/Transfer_learning/TransferLearningProject/learning/ ; python rnn_word2vec.py
 
-
+"""
+RNN = torch.load('RNN')
+RNN.evaluateRandomly(te_pairs)
+"""
 print('')
 print('')
 

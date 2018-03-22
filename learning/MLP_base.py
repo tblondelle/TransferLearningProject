@@ -24,6 +24,7 @@ import torch.nn.functional as F
 import time
 import math
 
+
 import matplotlib.pyplot as plt
 
 use_cuda = torch.cuda.is_available()
@@ -196,7 +197,7 @@ def getData(folder):
     listdata = []
 
     filenames = os.listdir(folder)
-    for filename in filenames: #[:1]:  # change here
+    for filename in filenames[:1]:  # change here
 
         with open(os.path.join(folder, filename), 'r') as f:
             for line in f:
@@ -309,15 +310,14 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
 # ==================================================================
 
 training_set_folder = "../../data/data_books_training_set"
-#test_set_folder = "../../data/data_videos_testing_set"
-test_set_folder = "../../data/data_books_testing_set"
+test_set_folder = "../../data/data_videos_testing_set"
+#test_set_folder = "../../data/data_books_testing_set"
 
 
-
-n_features = 500
+n_features = 200
 tr_pairs,te_pairs = folder2data(training_set_folder,test_set_folder,balanced_tr = True,balanced_te = True,n_features=n_features)
 
-hidden_size = 250
+hidden_size = 100
 batch_size = tr_pairs[0].data.size()[0]
 
 MLP = my_MLP(n_features, hidden_size, batch_size, n_layers = 1)

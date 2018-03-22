@@ -21,6 +21,8 @@ from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 
+from itertools import chain
+
 from gensim.models.word2vec import Word2Vec
 import word2vecClassifier  #JIC
 
@@ -146,21 +148,10 @@ class my_RNN(nn.Module):
         for epoch in range(1, n_epochs + 1):
             loss = 0
 
-            for instance in range(len(training_pairs)):
-                vect_list = []
+            for pair in training_pairs:
+                target_variable,input_variables = pair
 
-                for word in training_pairs[instance][1]:
-                    try : # si le mot est connu, on le transforme en vecteur
-                        vect_list.append(self.model[word])
-                    except : # sinon, on le remplace par le vecteur (0,0,0, ... ,0)
-                        vect_list.append(np.zeros((self.input_size,)))
-
-                input_list =  [torch.autograd.Variable(torch.Tensor(Vect)).view(1,-1) for Vect in vect_list]
-
-                target_variable = training_pairs[instance][0]
-                target_variable = Variable(torch.FloatTensor(np.array([target_variable])))
-
-                loss,_,_ = self.train_once(input_list, target_variable,  optimizer, criterion)
+                loss,_,_ = self.train_once(input_variables, target_variable,  optimizer, criterion)
 
                 print_loss_total += loss
 
@@ -192,20 +183,10 @@ class my_RNN(nn.Module):
 
         for pair in pairs:  # replace with pairs[:n] for testing
 
-            vect_list = []
-
-            for word in pair[1]:
-                try : # si le mot est connu, on le transforme en vecteur
-                    vect_list.append(self.model[word])
-                except : # sinon, on le remplace par le vecteur (0,0,0, ... ,0)
-                    vect_list.append(np.zeros((self.input_size,)))
-
-            input_variables = [Variable(torch.FloatTensor(Vect)).view(1,-1) for Vect in vect_list]
-
-            target_variable = Variable(torch.FloatTensor(np.array([pair[0]])))
-
-            output_list, hidden_list = [],[]
+            target_variable,input_variables = pair
             hidden = self.initHidden()
+            output_list, hidden_list = [],[]
+
 
             for word in input_variables :
                 output,hidden = self(word,hidden)
@@ -215,13 +196,16 @@ class my_RNN(nn.Module):
             output = torch.tanh(self.linear_out(output))
 
             #success = (output[int(pair[1])] == max(output))
-            note = pair[0]
-            predicted = output.data[0]
+            note = pair[0].data[0,0]
+            predicted = output.data[0][0]
 
+            #print('note',note)
+            #print('predicted',predicted)
             success = (note*predicted > 0)
+            #print('success',success[0])
 
 
-            if success[0,0] :
+            if success[0] :
                 n_successes += 1
                 if note>0:
                     TP += 1
@@ -248,6 +232,81 @@ class my_RNN(nn.Module):
         print('\t \t \t \t Success rate (%) : ',100*n_successes/len(pairs))
 
 
+
+        # evaluate on all pairs, print the confusion matrix
+        n_expected = n_pos+1
+                #= sum([note.data[0] for (note,_) in pairs if note.data[0] == 1])
+
+        predicted_scores = []
+        actual = []
+
+
+        for pair in pairs:  # replace with pairs[:n] for testing
+
+            target_variable,input_variables = pair
+            hidden = self.initHidden()
+            output_list, hidden_list = [],[]
+
+
+            for word in input_variables :
+                output,hidden = self(word,hidden)
+                output_list.append(output)
+                hidden_list.append(hidden)
+
+            output = torch.tanh(self.linear_out(output))
+
+            #success = (output[int(pair[1])] == max(output))
+            note = pair[0].data[0,0]
+            predicted = output.data[0,0,0]
+
+            actual.append(0 if note == -1 else 1 ) # on remplace la valeur -1 par un 0,
+                # ce sera plus simple pour les calculs
+            predicted_scores.append(predicted)
+
+
+        # find the good border
+        best = int(n_expected) * [(0,-1)]  # liste **triée, qui contient les n_expected meilleurs
+            # éléments trouvés jusqu'ici, sous la forme de couples (indice,valeur)
+
+        for i_p in range(len(predicted_scores)):
+            x = predicted_scores[i_p]
+
+            if x > best[-1][1] :
+                # si cet élément a une meilleur score que le plus petit élément sauvegardé:
+                # on cherche l'indice de la liste où il s'insère
+
+                i_insert = 0          # trouver l'indice i où insérer l'élément
+                while x < best[i_insert][1]:
+                    i_insert +=1
+                best = best[:i_insert] + [(i_p,x)] + best[i_insert:-1]
+                # on insère d au bon endroit pour que la liste reste triée
+
+
+        predicted = np.zeros((len(actual),))
+        predicted[[ind for (ind,val) in best]] = 1
+
+        actual = np.array(actual)
+        TP = int(sum( predicted*actual ))
+        TN = int(sum( (1-predicted)*(1-actual) ))
+        FP = int(sum( predicted*(1-actual) ))
+        FN = int(sum( (1-predicted)*actual ))
+
+
+        print('')
+        print('')
+        print('Confusion matrix (threshold method)')
+        print()
+        print(" \t\t Actual class")
+        print(" \t\t Pos \t Neg")
+        print("Predicted Pos  \t {} \t {}".format(TP,FN))
+        print("          Neg \t {} \t {}".format(FP,TN))
+        print('')
+        print('\t \t \t \t Positive reviews (%)) : ',100*int(TP+FP)/len(pairs))
+        print('\t \t \t \t Success rate (%) : ',100*int(TP+TN)/len(pairs))
+
+
+
+
 # overriding getData to only load 1 folder
 def getData(folder):
     """
@@ -258,15 +317,22 @@ def getData(folder):
     """
     listdata = []
 
-    filenames = os.listdir(folder)
-    for filename in filenames: #[:1]:  # change here
+    try :
+        filenames = os.listdir(folder)
+        for filename in filenames[:10]:  # change here
 
-        with open(os.path.join(folder, filename), 'r') as f:
-            for line in f:
+            with open(os.path.join(folder, filename), 'r') as f:
+                for line in f:
 
-                line2 = line.strip().split('\t')
-                if len(line2) == 2:
-                    listdata.append(line2)
+                    line2 = line.strip().split('\t')
+                    if len(line2) == 2:
+                        listdata.append(line2)
+    except :  # folder is a filenamewith open(os.path.join(folder, filename), 'r') as f:
+        for line in folder[:10000]:
+            line2 = line.strip().split('\t')
+            if len(line2) == 2:
+                listdata.append(line2)
+
     return listdata
 
 
@@ -284,8 +350,6 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
 
     pairs = getData(train_filename)
 
-    print(pairs[:2])
-
 
     if balanced_tr :
         """
@@ -296,7 +360,7 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
         tr_pairs = pairs_using_numbers
         """
         #Pour un équilibrage 50/50
-        pairs_using_numbers = [(-1,text)  for (target,text) in pairs  if target == 'Negative']
+        pairs_using_numbers = [(-1,text)  for (target,text) in pairs  if (target == 'Negative' or target == 'Neutral' )]
         Positive_reviews =  [(1,text) for (target,text) in pairs if target == 'Positive']
         pairs_using_numbers += Positive_reviews[:int(len(pairs_using_numbers))]
         tr_pairs = pairs_using_numbers
@@ -307,8 +371,6 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
         tr_pairs = pairs_using_numbers
 
     pairs = getData(test_filename)
-
-    print(pairs[:2])
 
     if balanced_te :
         pairs_using_numbers = [(-1,text)  for (target,text) in pairs  if (target == 'Negative' or target == 'Neutral')]
@@ -322,8 +384,9 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
         te_pairs = pairs_using_numbers
 
 
-        """ print([text for (_,text) in tr_pairs[:2]])
+        # print([text for (_,text) in tr_pairs[:2]])
 
+    """
     tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
     tfidf_vectorizer.fit([ text for (_,text) in tr_pairs+te_pairs])
 
@@ -335,29 +398,40 @@ def folder2data(train_filename,test_filename,balanced_tr ,balanced_te, n_feature
     truncatedsvd.fit(X_tr_token)
     truncatedsvd.fit(X_te_token)
 
-
     # Réduction de dimension
     X_tr_reduced_dim = truncatedsvd.transform(X_tr_token)
     X_te_reduced_dim = truncatedsvd.transform(X_te_token)
+    """
+
+    W2Vmodel = Word2Vec(sentences= [text.lower().split() for (_,text) in chain(tr_pairs,te_pairs) ] ,
+                size= n_features,
+                #window=self.window_size,
+                negative=20,
+                iter=50,
+                seed=1000,
+                workers=multiprocessing.cpu_count())
 
 
     new_tr_pairs = []
     for i in range(len(tr_pairs)):
-        (note,_) = tr_pairs[i]
+        (note,text) = tr_pairs[i]
+        note = Variable(torch.FloatTensor([[note]]))
 
-        vect = X_tr_reduced_dim[i,:]
-        new_tr_pairs.append((note,vect))
+        vect_list = [Variable(torch.FloatTensor(np.array( W2Vmodel[word.lower()]))).view(1,-1) for word in text.split() if word.lower() in W2Vmodel]
+
+        new_tr_pairs.append((note,vect_list))
 
     new_te_pairs = []
     for i in range(len(te_pairs)):
-        (note,_) = te_pairs[i]
+        (note,text) = te_pairs[i]
         note = Variable(torch.FloatTensor([[note]]))
 
-        vect = X_te_reduced_dim[i,:]
-        variable_vect = torch.autograd.Variable(torch.Tensor(vect))
-        new_te_pairs.append((note,variable_vect))"""
+        vect_list = [Variable(torch.FloatTensor(np.array(W2Vmodel[word.lower()]))).view(1,-1) for word in text.split() if word.lower() in W2Vmodel]
+        new_te_pairs.append((note,vect_list))
 
-    return tr_pairs, te_pairs
+
+
+    return new_tr_pairs, new_te_pairs,W2Vmodel
 
 
 
@@ -389,27 +463,20 @@ RNN = my_RNN(n_features, hidden_size, trainW2V = iter(sentences(tr_pairs+te_pair
 # ================ Using the RNN in itself =========================
 # ==================================================================
 
-training_set_folder = "../../data/data_books_training_set"
-#test_set_folder = "../../data/data_videos_testing_set"
-test_set_folder = "../../data/data_books_testing_set"
+#training_set_folder = "../../data/data_books_training_set"
+#test_set_folder = "../../data/data_books_testing_set"
 
+training_set_folder = "../../data/cleaned/Automotive_5.txt"
+test_set_folder = "../../data/cleaned/Musical_Instruments_5.txt"
 
-n_features=50
-tr_pairs,te_pairs = folder2data(training_set_folder,test_set_folder,balanced_tr=True, balanced_te=True, n_features=n_features)
-
+n_features=2
+tr_pairs,te_pairs,W2Vmodel = folder2data(training_set_folder,test_set_folder,balanced_tr=False, balanced_te=False, n_features=n_features)
 
 print("instances d'entraînement",len(tr_pairs))
 print("instances de test",len(te_pairs))
 
-hidden_size = 25
+hidden_size = 100
 
-W2Vmodel = Word2Vec(sentences= [text for (_,text) in tr_pairs+te_pairs ] ,
-            size= n_features,
-            #window=self.window_size,
-            negative=20,
-            iter=50,
-            seed=1000,
-            workers=multiprocessing.cpu_count())
 
 
 
@@ -418,15 +485,15 @@ RNN = my_RNN(n_features, hidden_size, model=W2Vmodel , n_layers = 1)
 #RNN.evaluateNpairs(te_pairs,1) # show some examples
 
 
-lr = 0.005
-N_epochs = 2
+lr = 0.000005
+N_epochs = 50
 print("learning rate",lr)
-RNN.trainIters(N_epochs, tr_pairs, te_pairs, lr, 1,5000)
+RNN.trainIters(N_epochs, tr_pairs, te_pairs, lr, 1,5)
 
 
 RNN.evaluateRandomly(te_pairs) # show global results
 
-torch.save(RNN,'RNN')
+torch.save(RNN,'RNN_W2V')
 #cours ; cd 2eme_partie_S9/Transfer_learning/TransferLearningProject/learning/ ; python rnn_word2vec.py
 
 """

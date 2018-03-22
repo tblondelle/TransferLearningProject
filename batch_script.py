@@ -2,7 +2,6 @@
 Ce fichier sert à faire tourner l'algorithme de transfer learning sur tous les ensembles deux à deux. (pas trop optimisé).
 """
 
-
 import main
 
 PATH_TO_DATA = "../data/"

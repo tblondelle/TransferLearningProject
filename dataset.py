@@ -42,3 +42,6 @@ for categorie1 in CATEGORIES:
     main.simplifyRatingAndKeepRelevantWords(stripped_metadata_folder_1, CLEANED_DATA_FOLDER_1)    
     main.createTrainingSetAndTestSet(CLEANED_DATA_FOLDER_1, TRAINING_SET_FOLDER_1, TESTING_SET_FOLDER_1)
     
+    
+    print("\n You can now delete the folders : {} and {}.\n".format(stripped_metadata_folder_1, CLEANED_DATA_FOLDER_1))
+    

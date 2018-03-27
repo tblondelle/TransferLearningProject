@@ -153,21 +153,6 @@ class MetaClassifier():
 
 
         X_source = truncatedsvd.transform(X_token)
-        """
-
-
-
-        print("Tokenisation...")
-        tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
-        X_token = tfidf_vectorizer.fit_transform(X_source)
-
-        truncatedsvd = TruncatedSVD(n_components=self.n_features)
-        print('train1_______________________________________________________________',len(X_source))
-
-        X_source = truncatedsvd.fit_transform(X_token)
-        print('train2_______________________________________________________________',X_source.shape)
-        #
-"""
 
         self.tfidf_vectorizer = tfidf_vectorizer
         self.truncatedsvd = truncatedsvd

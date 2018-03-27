@@ -73,7 +73,7 @@ def binariseLabels(Y):
             Y_bin.append(0)
         elif Y[i] == 'Positive':
             Y_bin.append(1)
-    
+
     return Y_bin
 
 class MetaClassifier():
@@ -92,7 +92,7 @@ class MetaClassifier():
         self.truncatedsvd = None
 
         self.n_features = n_features
-      
+
         self.validation_rate = validation_rate
         self.classifiers = {
             'Naive Bayes': GaussianNB(),
@@ -120,46 +120,64 @@ class MetaClassifier():
 
 
 
-    def train(self, X, Y):
+    def train(self, X_source, Y_source, X_dest):
         """
-        Based on X and Y, create a TFIDF matrix, then apply 
+        Based on X and Y, create a TFIDF matrix, then apply
         an SVD. Then train on all classifiers defined in
         the constructor.
 
         Input:
-         - X: A list of n sentences. A sentence is 
+         - X_source: A list of n sentences from the source space. A sentence is
                 one string.
-         - Y: A list of n labels. Labels are in {0, 1}
+         - Y_source: A list of n labels from the source space. Labels are in {0, 1}
                 (negative/positive)
-        Output: 
+         - X_dest: A list of n sentences from the destination space. A sentence is
+                one string.
+        Output:
          - None
         """
+
+        print("Tokenisation...")
+        tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
+        # to fit the tfidf, we need a list with the same number of elements as
+        # each of the lists we will use
+        X_chosen = sample(X_source,len(X_source)//2) + sample(X_dest,len(X_dest)//2+1)
+        tfidf_vectorizer.fit(X_chosen)
+        X_token_both = tfidf_vectorizer.fit_transform(X_source+X_dest)
+
+
+        truncatedsvd = TruncatedSVD(n_components=self.n_features)
+        truncatedsvd.fit(X_token_both)
+        X_token = tfidf_vectorizer.transform(X_source)
+
+
+
+        X_source = truncatedsvd.transform(X_token)
+        """
+
 
 
         print("Tokenisation...")
         tfidf_vectorizer = TfidfVectorizer(ngram_range=(1,2))
-        X_token = tfidf_vectorizer.fit_transform(X)
+        X_token = tfidf_vectorizer.fit_transform(X_source)
 
         truncatedsvd = TruncatedSVD(n_components=self.n_features)
-        X = truncatedsvd.fit_transform(X_token)
+        print('train1_______________________________________________________________',len(X_source))
+
+        X_source = truncatedsvd.fit_transform(X_token)
+        print('train2_______________________________________________________________',X_source.shape)
+        #
+"""
 
         self.tfidf_vectorizer = tfidf_vectorizer
         self.truncatedsvd = truncatedsvd
 
-
-
         print("Training...")
-        # Entrées :
-            # X = numpy array (N_instances,N_features)
-            # Y = numpy array (N_instances)
 
-        # Séparation entraînement/validation
-        #   La validation sert à mesurer les taux de succès de chaque algo pour
-        #   donner plus de poids aux bons algos.
-        limit = int((1 - self.validation_rate) * X.shape[0])
+        limit = int((1 - self.validation_rate) * X_source.shape[0])
 
-        X_train, Y_train = X[:limit,:], Y[:limit] # ne sert qu'à l'entrainement
-        X_val, Y_val = X[limit:,:], Y[limit:]  # validation, sert à calculer les performances
+        X_train, Y_train = X_source[:limit,:], Y_source[:limit] # ne sert qu'à l'entrainement
+        X_val, Y_val = X_source[limit:,:], Y_source[limit:]  # validation, sert à calculer les performances
 
 
         print("Training: {} lines of data".format(len(X_train)))
@@ -187,7 +205,7 @@ class MetaClassifier():
         """
         Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
         La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
-        
+
         Input:
          - X: list of sentences. A sentence is a sequence of words ([a-zA-Z]*) separated by a space.
         Output:
@@ -215,7 +233,7 @@ class MetaClassifier():
         """
         Renvoie les prédictions du classifieur à partir des prédictions de chacun des classifieurs de base,
         La décision est rendue après un vote pondéré par l'efficacité de chacun des classifieurs
-        
+
         Input:
          - X: list of sentences. A sentence is a sequence of words ([a-zA-Z]*) separated by a space.
          - Y: numpy array (N_instances) (optionnel) classes réelles
@@ -224,10 +242,15 @@ class MetaClassifier():
          - Y_pred: numpy array (N_instances)
          - success_rate: self explanatory.
         """
-        
+
+        print('test1________________________________________________________________',len(X))
         print("Tokenisation...")
         X = self.tfidf_vectorizer.transform(X)
+
+        print('test2________________________________________________________________',X.shape)
         X = self.truncatedsvd.transform(X) # numpy array (N_instances,N_features) carac d'entrée des données à prédire
+
+        print('test3________________________________________________________________',X.shape)
 
         probas = np.zeros((X.shape[0], ))
 
@@ -255,7 +278,7 @@ if __name__ == "__main__":
     data = getData(TRAINING_SET_FOLDER_1)[:10000]
     data = balanceData(data)
     labels, X = zip(*data)
-    Y = binariseLabels(labels)    
+    Y = binariseLabels(labels)
 
     model = MetaClassifier(validation_rate=0.1, n_features=150)
     model.train(X, Y)
@@ -266,6 +289,6 @@ if __name__ == "__main__":
     data = getData(TESTING_SET_FOLDER_1)[:100]
     labels, X = zip(*data)
     Y = binariseLabels(labels)
-    
+
     Y_pred, success_rate = model.test(X, Y)
     print(Y_pred, success_rate)
